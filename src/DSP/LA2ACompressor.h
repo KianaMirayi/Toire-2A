@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <algorithm>
 #include <array>
@@ -80,8 +80,11 @@ public:
     static constexpr float kSatN  = 4.6279f;    // 硬度
     static constexpr float kSatA2 = 0.03307f;   // 二次谐波（不对称）
     static constexpr float kSatA4 = -0.02683f;  // 四次谐波（偶次高阶）
-    static constexpr float kKneeDb        = -7.37f;   // 侧链改读 makeup 之前 → 电平低 14.5 dB，knee 同步下移      // 侧链内部拐点（实测反解 + 真实素材微调）
-    static constexpr float kSlope         = 4.5f;      // 拐点以上的 GR 斜率 (dB/dB)（反解值）
+    static constexpr float kKneeDb        = -7.37f;   // 侧链内部主拐点（makeup 之前取信号，已下移 14.5 dB）
+    static constexpr float kSlope         = 4.5f;      // 主斜率（中低电平）
+    static constexpr float kSlope2        = 2.0f;      // 附加斜率（高电平）
+    static constexpr float kKnee2Db       = 10.0f;     // 第二拐点（相对主拐点的 over 值）
+    static constexpr float kSoft2Db       = 4.0f;      // 第二拐点柔和度
     static constexpr float kSoftDb        = 2.0f;      // 拐点柔和度
 
 private:

@@ -186,7 +186,13 @@ void LA2ACompressor::updateSidechain (float sample) noexcept
 
     // ── 6) 静态 GR 曲线：软拐点 + 线性斜率 ──────────────
     const float over  = lvlDb - kKneeDb;
-    float grDb = kSlope * (softPlus (over, kSoftDb) - kSoftDb * kHalfLn2);
+
+    // ── 两段斜率：单一线性斜率拟合不出"低电平偏深、高电平偏浅"的曲线 ──
+    // 实测矩阵显示我们的误差符号随电平翻转，说明真实曲线是【凸的】（加速）：
+    //   主斜率 = kSlope      → 控制中低电平
+    //   附加斜率 = kSlope2   → 只在 over 超过 kKnee2Db 后生效（高电平）
+    float grDb = kSlope  * (softPlus (over, kSoftDb) - kSoftDb * kHalfLn2);
+    grDb += kSlope2 * softPlus (over - kKnee2Db, kSoft2Db);   // 低于第二拐点时自动趋近 0
     grDb = std::max (0.0f, grDb);
 
     currentGain = std::pow (10.0f, -grDb / 20.0f);
