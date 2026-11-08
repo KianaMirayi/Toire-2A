@@ -81,19 +81,20 @@ void LA2ACompressor::setPeakReduction (float n) noexcept
     // 压缩量不足 → 按 τ=A/GR 恢复就快 → 听感上出现"回声"。
     // 下表由「UAD 实测 GR 反解所需的侧链增益」得到。
     // 第一版由反解得到，第二版按实测 GR 偏差逐点修正（浅压缩区压多了 1.2 dB）
-    static const float peakMap[8][2] = {
-        {   0.0f, -2.4f },
-        {  20.0f, -1.2f },
-        {  30.0f,  4.2f },
-        {  40.0f, 10.5f },
-        {  50.0f, 15.3f },
-        {  60.0f, 20.1f },
-        {  80.0f, 34.6f },
-        { 100.0f, 33.1f },
+    static const float peakMap[9][2] = {
+        {   0.0f, -3.9f },
+        {  20.0f, -2.7f },
+        {  30.0f,  2.7f },
+        {  40.0f, 10.0f },
+        {  50.0f, 14.7f },
+        {  60.0f, 19.5f },
+        {  70.0f, 27.8f },
+          {  80.0f, 34.2f },
+        { 100.0f, 39.5f },
     };
     const float dial = peakReduction * 100.0f;
-    float db = peakMap[7][1];
-    for (int i = 1; i < 8; ++i)
+    float db = peakMap[8][1];
+    for (int i = 1; i < 9; ++i)
     {
         if (dial <= peakMap[i][0])
         {
@@ -160,7 +161,7 @@ void LA2ACompressor::updateSidechain (float sample) noexcept
                                     -20.0f * std::log10 (std::max (currentGain, 1.0e-6f)));
     const float aMs   = kRelQuadA * (kRelQuadAMin + (1.0f - kRelQuadAMin) * memN);
     const float tauMs = (grDepth > 0.2f)
-                          ? std::clamp (aMs / grDepth + kRelTauFloorMs, kRelTauMinMs, kRelTauMaxMs)
+                          ? std::clamp (aMs / std::pow (grDepth, kRelTauExp) + kRelTauFloorMs, kRelTauMinMs, kRelTauMaxMs)
                           : kRelTauMaxMs;
     const float cRelNow = coefficientFor (tauMs);
 
@@ -237,7 +238,10 @@ float LA2ACompressor::process (float* const* channels, int numChannels, int numS
             const float au = std::fabs (u);
             const float y  = kSatT * u * std::pow (1.0f + std::pow (au, kSatN), -1.0f / kSatN);
             const float y2 = y * y;
-            const float sat = y + kSatA2 * y2 + kSatA4 * y2 * y2;
+            const float y3 = y2 * y;
+            const float y4 = y2 * y2;
+            const float y5 = y4 * y;
+            const float sat = y + kSatA2 * y2 + kSatA3 * y3 + kSatA4 * y4 + kSatA5 * y5;
 
             // 一阶直流阻断：不对称项会引入直流
             dcState = sat - dcPrev + 0.995f * dcState;

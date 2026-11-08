@@ -10,6 +10,10 @@ TOIRE2AAudioProcessor::TOIRE2AAudioProcessor()
 {
     peakReductionParam = apvts.getRawParameterValue ("peakReduction");
     makeupGainParam    = apvts.getRawParameterValue ("makeupGain");
+    meterAttackParam   = apvts.getRawParameterValue ("meterAttack");
+    meterReleaseParam  = apvts.getRawParameterValue ("meterRelease");
+    meterModeParam     = apvts.getRawParameterValue ("meterMode");
+    bypassParam        = apvts.getRawParameterValue ("bypass");
 }
 
 TOIRE2AAudioProcessor::~TOIRE2AAudioProcessor() = default;
@@ -65,6 +69,39 @@ TOIRE2AAudioProcessor::createParameterLayout()
         juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f),
         50.0f));
 
+    // ── 表头弹道（VU 积分器）─────────────────────────────
+    // 暴露出来方便现场调：起针越慢，两个快速底鼓越不会"跳两下"。
+    //   真 VU 规范：满幅上升 ≈300 ms（二阶 τ≈60 ms）
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "meterAttack", 1 },
+        "Meter Attack",
+        juce::NormalisableRange<float> (5.0f, 300.0f, 1.0f),
+        62.0f));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "meterRelease", 1 },
+        "Meter Release",
+        juce::NormalisableRange<float> (30.0f, 2000.0f, 1.0f),
+        110.0f));
+
+    // 表头 3 位开关（真机面板上的 GAIN REDUCTION / OUTPUT +10 / OUTPUT +4）
+    //   0 = GR        指针显示增益衰减（压得越深越往左）
+    //   1 = OUTPUT+10 0 VU ↔ −8 dBFS（即 +10 dBu 参考）
+    //   2 = OUTPUT+4  0 VU ↔ −14 dBFS（即 +4 dBu 参考）
+    layout.add (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { "meterMode", 1 },
+        "Meter Mode",
+        juce::StringArray { "Gain Reduction", "Output +10", "Output +4" },
+        0));
+
+    // 旁路开关（面板上的 POWER / ON）
+    //   true  = 旁路，直通不压缩
+    //   false = 正常处理
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "bypass", 1 },
+        "Bypass",
+        false));
+
     return layout;
 }
 
@@ -106,17 +143,59 @@ void TOIRE2AAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     compressor.setPeakReduction (peakReductionParam->load() * 0.01f);
     compressor.setMakeupGainDb  (dialToGainDb (makeupGainParam->load()));
 
+    // 表头弹道（可在 UI 里实时调）
+    const float meterAtkMs = meterAttackParam  != nullptr ? meterAttackParam->load()  : 62.0f;
+    const float meterRelMs = meterReleaseParam != nullptr ? meterReleaseParam->load() : 110.0f;
+
     // ── 处理（原地）───────────────────────────────────────
     const int usedCh = juce::jmin (numCh, 2);
     float* chans[2]  = { nullptr, nullptr };
     for (int ch = 0; ch < usedCh; ++ch)
         chans[ch] = buffer.getWritePointer (ch);
 
-    const float blockGr = compressor.process (chans, usedCh, numSamples);
+    // 旁路：直接跳过压缩器（buffer 是原地处理，不动就是直通）
+    const bool bypassed = bypassParam != nullptr && bypassParam->load() > 0.5f;
+    const float blockGr = bypassed ? 0.0f
+                                   : compressor.process (chans, usedCh, numSamples);
+
+    // 表头弹道（二阶 VU 积分器，不是取峰值）──────────────
+    // 直接送"块内最深 GR"会让指针跟着每个尖峰乱跳（两个快速底鼓会看到跳两下）。
+    // 真表头是二阶低通：满幅上升 ~300 ms、无过冲，第二个底鼓的尖峰会被抹平。
+    {
+        const float blockSec = (float) numSamples / (float) juce::jmax (1.0, getSampleRate());
+        const float tau = ((blockGr < meterS2) ? meterAtkMs : meterRelMs) * 0.001f;
+        const float a = 1.0f - std::exp (-blockSec / tau);
+        meterS1 += (blockGr - meterS1) * a;
+        meterS2 += (meterS1 - meterS2) * a;
+    }
+
+    // 输出峰值（表头 OUTPUT +10 / +4 模式用），慢释放
+    {
+        const float inPk  = compressor.getInputPeak();
+        const float outPk = compressor.getOutputPeak();
+        const float pkDb  = (outPk > 1.58e-5f) ? 20.0f * std::log10 (outPk) : -96.0f;
+        const float sec   = (float) numSamples / (float) juce::jmax (1.0, getSampleRate());
+        const float aPk   = 1.0f - std::exp (-sec / 0.4f);
+        meterPeakHold += (pkDb - meterPeakHold) * aPk;
+        (void) inPk;
+    }
+
+    // ── 表头模式 ───────────────────────────────────────────
+    //   0 = GR       ：指针 = GR（负值 → 越压越往左）
+    //   1 = OUTPUT+10：0 VU ↔ −8 dBFS  → 值 = outDb + 8
+    //   2 = OUTPUT+4 ：0 VU ↔ −14 dBFS → 值 = outDb + 14
+    const int meterMode = meterModeParam != nullptr
+                            ? (int) juce::jlimit (0.0f, 2.0f, meterModeParam->load())
+                            : 0;
+    float vuValueDb;
+    if (meterMode == 0)
+        vuValueDb = meterS2;
+    else
+        vuValueDb = meterPeakHold + ((meterMode == 1) ? 8.0f : 14.0f);
 
     // ── DSP → 桥（原生 UI / WebView UI 共用）───────────────
     toreia2a::UiTelemetry t;
-    t.gainReductionDb = blockGr;
+    t.gainReductionDb = vuValueDb;
     t.inputPeakDb     = toreia2a::UiBridge::linToDb (compressor.getInputPeak());
     t.outputPeakDb    = toreia2a::UiBridge::linToDb (compressor.getOutputPeak());
     t.vuDb            = t.gainReductionDb;
@@ -127,9 +206,8 @@ void TOIRE2AAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 juce::AudioProcessorEditor* TOIRE2AAudioProcessor::createEditor()
 {
 #if TOREI2A_HAS_WEBVIEW
-    // 未来切换 WebView 前端时，把这里换成 Web 版 Editor 即可 —— DSP / 桥不动
-    // return new TOIRE2AWebEditor (*this);
-    return new TOIRE2AAudioProcessorEditor (*this);
+    // WebView2 前端（CMake: -DTOIRE2A_WEBVIEW2=ON）
+    return new TOIRE2AWebEditor (*this);
 #else
     return new TOIRE2AAudioProcessorEditor (*this);
 #endif

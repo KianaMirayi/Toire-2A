@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <algorithm>
 #include <array>
@@ -58,13 +58,16 @@ public:
     // 单指数拟合残差是它的 4.7 倍）。
     //   kRelQuadA    = A 的基准值（dB·ms）
     //   kRelQuadAMin = 无记忆时 A 的最小倍率（短过载恢复更快）
-    static constexpr float kRelQuadA    = 1600.0f;   // 1/GR 项系数（实测 A 在 900–2300 之间随 GR 上升）
+    static constexpr float kRelQuadA    = 11000.0f;   // 1/GR 项系数（实测 A 在 900–2300 之间随 GR 上升）
     static constexpr float kRelQuadAMin = 0.40f;
     static constexpr float kRelTauMaxMs = 4000.0f;   // τ 上限
     // τ 下限：实测 UAD 在高 GR 时 τ 稳定在 ~125 ms（不随 GR 继续变小）
     static constexpr float kRelTauMinMs = 30.0f;
     // 实测 UAD：τ·GR 随 GR 上升（900→2300），说明规律是 τ = A/GR + 地板
     static constexpr float kRelTauFloorMs = 45.0f;
+    // τ 对 GR 的指数：>1 会让"越接近恢复完越慢"的曲率更强
+    // 实测 UAD 的 t80/t50 ≈ 5.3，指数 1（纯 1/GR）只能做出 3.2
+    static constexpr float kRelTauExp = 1.80f;
 
     // 记忆状态：慢充慢放，只用于调制 A（不参与电平）
     static constexpr float kMemRiseMs     = 600.0f;
@@ -76,12 +79,14 @@ public:
     //   模型 y = T*u/(1+|u|^n)^(1/n) + a*y²,  u = x/T
     //   拟合结果：THD 相似度 99.3%，增益误差 0.06 dB
     //   n = 8.5 说明真机接近【硬限幅】而非软 tanh —— 这是它能"少压缩多失真"的原因
-    static constexpr float kSatT  = 1.61218f;   // 拐点 4.15 dBFS
-    static constexpr float kSatN  = 4.6279f;    // 硬度
-    static constexpr float kSatA2 = 0.03307f;   // 二次谐波（不对称）
-    static constexpr float kSatA4 = -0.02683f;  // 四次谐波（偶次高阶）
+    static constexpr float kSatT  = 2.052441f;   // 拐点 +6.2 dBFS
+    static constexpr float kSatN  = 30.0f;       // 硬度（接近硬限幅）
+    static constexpr float kSatA2 = 0.012340f;   // 二次谐波
+    static constexpr float kSatA3 = 0.003979f;   // 三次谐波
+    static constexpr float kSatA4 = -0.008347f;  // 四次谐波
+    static constexpr float kSatA5 = -0.017387f;  // 五次谐波
     static constexpr float kKneeDb        = -7.37f;   // 侧链内部主拐点（makeup 之前取信号，已下移 14.5 dB）
-    static constexpr float kSlope         = 4.5f;      // 主斜率（中低电平）
+    static constexpr float kSlope         = 3.75f;      // 主斜率（中低电平）
     static constexpr float kSlope2        = 2.0f;      // 附加斜率（高电平）
     static constexpr float kKnee2Db       = 10.0f;     // 第二拐点（相对主拐点的 over 值）
     static constexpr float kSoft2Db       = 4.0f;      // 第二拐点柔和度
