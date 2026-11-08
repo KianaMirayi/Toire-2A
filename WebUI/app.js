@@ -1,4 +1,4 @@
-﻿/* =====================================================================
+/* =====================================================================
    TOiRE-2A —— 前端逻辑（ES5，无外部依赖）
    · 两个可拖拽旋钮（GAIN / PEAK REDUCTION），WebSliderRelay 双向绑定
    · VU 表：C++ 30Hz 推 gainReductionDb（语义 = VU 刻度上的 dB 值），这里插值画针
@@ -649,6 +649,63 @@
       setupMeter();
     });
 
+    /* ============ 出厂预设下拉 ============ */
+    /* 名称必须与 C++ 的 src/Presets/FactoryPresets.h 一一对应 */
+    var PRESET_NAMES = [
+      "Init", "Light Comp",
+      "Vocal 1", "Vocal 2", "Vocal 3", "Vocal 4",
+      "Bass", "Bass Limit",
+      "Snare Color", "Snare Limiter",
+      "Roomy", "Mix Bus"
+    ];
+
+    function initPresets () {
+      var sel = document.getElementById("presetSelect");
+      var prev = document.getElementById("presetPrev");
+      var next = document.getElementById("presetNext");
+      if (!sel) return;
+
+      var st = null;
+      try { st = window.__JUCE__.getSliderState("preset"); } catch (e) { st = null; }
+
+      /* 填充下拉 */
+      var i;
+      for (i = 0; i < PRESET_NAMES.length; i++) {
+        var opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = PRESET_NAMES[i];
+        sel.appendChild(opt);
+      }
+
+      var applyIndex = function (idx) {
+        idx = clamp(idx, 0, PRESET_NAMES.length - 1);
+        sel.value = String(idx);
+        if (st) st.setNormalisedValue(idx / (PRESET_NAMES.length - 1));
+      };
+
+      sel.addEventListener("change", function () {
+        applyIndex(parseInt(sel.value, 10));
+      });
+      if (prev) prev.addEventListener("click", function () {
+        applyIndex(parseInt(sel.value, 10) - 1);
+      });
+      if (next) next.addEventListener("click", function () {
+        applyIndex(parseInt(sel.value, 10) + 1);
+      });
+
+      /* C++ 侧（宿主 Program 菜单）改了 → 同步下拉 */
+      if (st) {
+        var pull = function () {
+          var n = st.getNormalisedValue();
+          var idx = Math.round(n * (PRESET_NAMES.length - 1));
+          if (String(idx) !== sel.value) sel.value = String(idx);
+        };
+        st.valueChangedEvent.addListener(pull);
+        st.propertiesChangedEvent.addListener(pull);
+        pull();
+      }
+    }
+
     /* 两个装饰开关：点击切换高光（COMP/LIMIT 与 POWER） */
     try {
       var swLeft = document.querySelector(".sw-left");
@@ -678,6 +735,9 @@
 
     /* 表头弹道控件（meterAttack / meterRelease） */
     try { initMeterTune(); } catch (e) { /* 参数不存在时忽略 */ }
+
+    /* 出厂预设下拉 */
+    try { initPresets(); } catch (e2) { /* 参数不存在时忽略 */ }
 
     /* 首帧：即使还没有遥测也要把表画出来 */
     window.requestAnimationFrame(frame);

@@ -1,4 +1,4 @@
-﻿#include "PluginProcessor.h"
+#include "PluginProcessor.h"
 
 #include "PluginEditor.h"
 
@@ -14,9 +14,74 @@ TOIRE2AAudioProcessor::TOIRE2AAudioProcessor()
     meterReleaseParam  = apvts.getRawParameterValue ("meterRelease");
     meterModeParam     = apvts.getRawParameterValue ("meterMode");
     bypassParam        = apvts.getRawParameterValue ("bypass");
+
+    // 预设监听放在最后：确保所有 raw 指针都已就绪
+    apvts.addParameterListener ("preset", this);
 }
 
-TOIRE2AAudioProcessor::~TOIRE2AAudioProcessor() = default;
+TOIRE2AAudioProcessor::~TOIRE2AAudioProcessor()
+{
+    apvts.removeParameterListener ("preset", this);
+}
+
+//==============================================================================
+//  预设
+//==============================================================================
+namespace
+{
+    // 写一个参数但不从这里触发监听回调（applyingPreset 已经挡住了）
+    void setParamSilently (juce::AudioProcessorValueTreeState& apvts,
+                           const juce::String& id, float normalised)
+    {
+        if (auto* p = apvts.getParameter (id))
+            p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, normalised));
+    }
+}
+
+void TOIRE2AAudioProcessor::applyPreset (int index)
+{
+    if (index < 0 || index >= toreia2a::kNumFactoryPresets)
+        return;
+
+    const auto& pr = toreia2a::kFactoryPresets[index];
+    currentPreset = index;
+
+    juce::ScopedValueSetter<bool> guard (applyingPreset, true);
+
+    setParamSilently (apvts, "peakReduction", pr.peakReduction * 0.01f);
+    setParamSilently (apvts, "makeupGain",    pr.makeupGain    * 0.01f);
+    setParamSilently (apvts, "meterMode",     (float) pr.meterMode / 2.0f);
+}
+
+void TOIRE2AAudioProcessor::parameterChanged (const juce::String& parameterID, float newValue)
+{
+    if (applyingPreset)
+        return;
+
+    if (parameterID == "preset")
+    {
+        const int idx = juce::jlimit (0, toreia2a::kNumFactoryPresets - 1,
+                                      (int) std::lround (newValue));
+        if (idx != currentPreset)
+            applyPreset (idx);
+    }
+}
+
+void TOIRE2AAudioProcessor::setCurrentProgram (int index)
+{
+    applyPreset (juce::jlimit (0, toreia2a::kNumFactoryPresets - 1, index));
+
+    // 同步给网页下拉（如果编辑器开着）
+    if (auto* p = apvts.getParameter ("preset"))
+        p->setValueNotifyingHost (p->convertTo0to1 ((float) currentPreset));
+}
+
+const juce::String TOIRE2AAudioProcessor::getProgramName (int index)
+{
+    if (index >= 0 && index < toreia2a::kNumFactoryPresets)
+        return juce::String (toreia2a::kFactoryPresets[index].name);
+    return {};
+}
 
 namespace
 {
@@ -101,6 +166,21 @@ TOIRE2AAudioProcessor::createParameterLayout()
         juce::ParameterID { "bypass", 1 },
         "Bypass",
         false));
+
+    // 预设号（0..kNumFactoryPresets-1）。不参与自动化，只作为「网页下拉 → C++」的通道。
+    // 用非自动化的 AudioParameterInt 而不是自定义事件，是为了复用现成的 slider relay。
+    // JUCE 8 没有公开的 setAutomatable()，所以用子类覆盖 isAutomatable()。
+    struct PresetParameter : juce::AudioParameterInt
+    {
+        using juce::AudioParameterInt::AudioParameterInt;
+        bool isAutomatable() const override { return false; }
+    };
+
+    layout.add (std::make_unique<PresetParameter> (
+        juce::ParameterID { "preset", 1 },
+        "Preset",
+        0, toreia2a::kNumFactoryPresets - 1,
+        0));
 
     return layout;
 }

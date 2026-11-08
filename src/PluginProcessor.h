@@ -1,11 +1,13 @@
-﻿#pragma once
+#pragma once
 
 #include <JuceHeader.h>
 
 #include "Bridge/UiBridge.h"
 #include "DSP/LA2ACompressor.h"
+#include "Presets/FactoryPresets.h"
 
-class TOIRE2AAudioProcessor : public juce::AudioProcessor
+class TOIRE2AAudioProcessor : public juce::AudioProcessor,
+                              private juce::AudioProcessorValueTreeState::Listener
 {
 public:
     TOIRE2AAudioProcessor();
@@ -25,14 +27,24 @@ public:
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
 
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram (int) override {}
-    const juce::String getProgramName (int) override { return {}; }
+    // ── 宿主预设（Program API）──────────────────────────────
+    // 出厂预设表见 Presets/FactoryPresets.h。宿主（Cubase / Studio Pro / Reaper）
+    // 会把它们显示在插件窗口的预设下拉里。
+    int getNumPrograms() override { return toreia2a::kNumFactoryPresets; }
+    int getCurrentProgram() override { return currentPreset; }
+    void setCurrentProgram (int index) override;
+    const juce::String getProgramName (int index) override;
     void changeProgramName (int, const juce::String&) override {}
 
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
+
+    /** 应用第 index 个出厂预设（会同时改 Peak / Gain / 表头档位）。
+        也用于 PluginEditor 暴露给网页端的预设下拉。 */
+    void applyPreset (int index);
+
+    /** 当前预设号（-1 = 已被手动改动，不匹配任何出厂预设） */
+    int getCurrentPresetIndex() const noexcept { return currentPreset; }
 
     juce::AudioProcessorValueTreeState apvts;
 
@@ -41,6 +53,13 @@ public:
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // 预设参数变化时（网页下拉或宿主 Program 菜单）应用预设
+    void parameterChanged (const juce::String& parameterID, float newValue) override;
+
+    // 正在应用预设时，忽略自己触发的参数回调
+    bool applyingPreset = false;
+    int  currentPreset = 0;
 
     toreia2a::LA2ACompressor compressor;
     toreia2a::UiBridge       uiBridge;

@@ -1036,3 +1036,65 @@ body {
   transition: none;
   will-change: opacity;
 }
+
+/* =====================================================================
+   预设条（出厂预设，接 C++ 的 preset 参数）
+   位置：GR 数字窗下方、T4 呼吸灯左边
+   ===================================================================== */
+.preset-bar {
+  position: absolute;
+  left: 355px;
+  top: 256px;
+  width: 210px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  z-index: 5;
+}
+
+.preset-nav {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: var(--surface-container, #28221a);
+  color: var(--on-surface-muted, #8d8273);
+  font: 600 13px/22px "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--outline-variant, #3a332a);
+  transition: color 120ms ease-out, background-color 120ms ease-out;
+}
+.preset-nav:hover {
+  color: var(--primary, #e8b96a);
+  background: #332a20;
+}
+.preset-nav:active { background: #3d3327; }
+
+.preset-select {
+  flex: 1 1 auto;
+  height: 22px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: var(--surface-container, #28221a);
+  color: var(--primary, #e8b96a);
+  font: 600 9px/22px "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  letter-spacing: .6px;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--outline-variant, #3a332a);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #8d8273 50%),
+                    linear-gradient(135deg, #8d8273 50%, transparent 50%);
+  background-position: calc(100% - 11px) 9px, calc(100% - 7px) 9px;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+}
+.preset-select option {
+  background: #1b1610;
+  color: #e9e7e2;
+}
