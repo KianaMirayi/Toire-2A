@@ -71,3 +71,6 @@ docs/*.md
 docs/reports/
 *.before-scale
 *.bak
+
+# 整个 measure/ 目录都不入库（只保留本地：测量宿主、脚本、素材）
+measure/
