@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <JuceHeader.h>
 
@@ -46,3 +46,85 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TOIRE2AAudioProcessorEditor)
 };
+
+// ============================================================================
+//  WebView2 版编辑器
+//  CMake 选项 TOIRE2A_WEBVIEW2=ON 时由 createEditor() 选用，原生 UI 保留。
+// ============================================================================
+#if TOREI2A_HAS_WEBVIEW
+
+/** WebBrowserComponent 默认不通知"页面加载完成"，这里暴露出来。 */
+class Torei2aWebView : public juce::WebBrowserComponent
+{
+public:
+    using WebBrowserComponent::WebBrowserComponent;
+
+    std::function<void (const juce::String&)> onPageLoaded;
+
+    void pageFinishedLoading (const juce::String& url) override
+    {
+        if (onPageLoaded)
+            onPageLoaded (url);
+    }
+};
+
+/**
+ * WebView2 前端编辑器。
+ *
+ * 数据流：
+ *   APVTS ←→ WebSliderRelay/WebSliderParameterAttachment ←→ JS 旋钮（双向、可自动化）
+ *   UiBridge ──snapshot()──► 30 Hz Timer ──emitEventIfBrowserIsVisible("telemetry")──► JS 表头
+ *
+ * 注意（踩过的坑，别改）：
+ *   · setBounds() 必须在 addAndMakeVisible() 之前
+ *   · 首次可见（visibilityChanged）才创建 WebView，避免 DAW 首载崩溃
+ *   · WebView2 userData 放 %APPDATA%，不放 %TEMP%
+ *   · pageFinishedLoading 之前一律不 emit
+ *   · C++→JS 只用 emitEventIfBrowserIsVisible，绝不用 evaluateJavascript
+ */
+class TOIRE2AWebEditor : public juce::AudioProcessorEditor,
+                         private juce::Timer
+{
+public:
+    explicit TOIRE2AWebEditor (TOIRE2AAudioProcessor&);
+    ~TOIRE2AWebEditor() override;
+
+    void paint (juce::Graphics&) override;
+    void resized() override;
+    void visibilityChanged() override;
+
+private:
+    void timerCallback() override;
+    void ensureWebView();
+
+    TOIRE2AAudioProcessor& processor;
+
+    std::unique_ptr<Torei2aWebView> webView;
+
+    // 参数双向绑定（名称必须与 JS 侧 getSliderState 的名字一致）
+    juce::WebSliderRelay peakReductionRelay { "peakReduction" };
+    juce::WebSliderRelay makeupGainRelay    { "makeupGain" };
+    juce::WebSliderRelay meterAttackRelay   { "meterAttack" };
+    juce::WebSliderRelay meterReleaseRelay  { "meterRelease" };
+    juce::WebSliderRelay bypassRelay        { "bypass" };
+
+    // 表头模式（AudioParameterChoice 0/1/2）：用 slider relay 走，
+    // JS 侧读归一化值 0 / 0.5 / 1，写回时同样用 setNormalisedValue 切档。
+    juce::WebSliderRelay meterModeRelay     { "meterMode" };
+
+    std::unique_ptr<juce::WebSliderParameterAttachment> peakReductionAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> makeupGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> meterAttackAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> meterReleaseAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bypassAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> meterModeAttachment;
+
+    // 遥测载荷 [grDb, inPeakDb, outPeakDb, vuDb, frame]
+    juce::Array<juce::var> telemetryPayload;
+
+    bool pageLoaded = false;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TOIRE2AWebEditor)
+};
+
+#endif // TOREI2A_HAS_WEBVIEW

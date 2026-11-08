@@ -1,4 +1,4 @@
-#include "PluginEditor.h"
+﻿#include "PluginEditor.h"
 
 #include "PluginProcessor.h"
 
@@ -6,7 +6,7 @@ TOIRE2AAudioProcessorEditor::TOIRE2AAudioProcessorEditor (TOIRE2AAudioProcessor&
     : AudioProcessorEditor (&p), processor (p)
 {
     setOpaque (true);
-    setSize (760, 420);
+    setSize (1188, 329);      // 与 UAD LA-2A 面板同比例
 
     setLookAndFeel (&laf);
 
@@ -97,8 +97,8 @@ void TOIRE2AAudioProcessorEditor::resized()
 
 void TOIRE2AAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    // 背景（与未来 Web UI 的 body 背景保持一致，切换时不会闪）
-    g.fillAll (juce::Colour (0xff1a1a1e));
+    // 背景（与 Web UI 的 body / 面板底色一致，切换时不会闪白）
+    g.fillAll (juce::Colour (0xff0b0b0c));
 
     // 标题
     g.setColour (juce::Colour (0xffe0b050));
@@ -171,3 +171,239 @@ void TOIRE2AAudioProcessorEditor::paint (juce::Graphics& g)
                 getLocalBounds().reduced (16).removeFromBottom (16),
                 juce::Justification::centredRight);
 }
+
+// ============================================================================
+//  WebView2 版编辑器
+// ============================================================================
+#if TOREI2A_HAS_WEBVIEW
+
+namespace
+{
+    /**
+     * 找 index.html。
+     *
+     * ⚠️ 必须用 invokedExecutableFile（不是 currentExecutableFile）：
+     *    宿主/standalone 的实际路径不一定是 exe 自己所在目录。
+     *
+     * 目录布局：
+     *   Standalone/TOIRE-2A.exe + Standalone/webui/index.html
+     *   TOIRE-2A.vst3/Contents/x86_64-win/TOIRE-2A.vst3 + Contents/webui/index.html
+     */
+    juce::File findWebUiIndex()
+    {
+        const auto exeDir = juce::File::getSpecialLocation (juce::File::invokedExecutableFile)
+                                .getParentDirectory();
+
+        auto dir = exeDir;
+
+        for (int i = 0; i < 8; ++i)
+        {
+            for (auto* sub : { "webui/index.html",
+                               "Contents/webui/index.html",
+                               "../webui/index.html",
+                               "../../webui/index.html" })
+            {
+                const auto f = dir.getChildFile (sub);
+
+                if (f.existsAsFile())
+                    return f;
+            }
+
+            dir = dir.getParentDirectory();
+        }
+
+        // 开发期回退：源码树里的 WebUI/（install 到别处时这步自然落空）
+        const auto srcPath = juce::String (__FILE__);
+        auto srcFile = juce::File (srcPath);
+
+        if (! juce::File::isAbsolutePath (srcPath))
+            srcFile = juce::File::getCurrentWorkingDirectory().getChildFile (srcPath);
+
+        const auto devFile = srcFile.getParentDirectory().getParentDirectory()
+                                 .getChildFile ("WebUI").getChildFile ("index.html");
+
+        if (devFile.existsAsFile())
+            return devFile;
+
+        return {};
+    }
+} // namespace
+
+TOIRE2AWebEditor::TOIRE2AWebEditor (TOIRE2AAudioProcessor& p)
+    : AudioProcessorEditor (&p), processor (p)
+{
+    setOpaque (true);
+    setResizable (false, false);
+    setSize (1188, 329);      // 与 UAD LA-2A 面板同比例
+
+    // 参数双向绑定：DAW 自动化 ←→ 网页旋钮
+    if (auto* peakParam = processor.apvts.getParameter ("peakReduction"))
+        peakReductionAttachment = std::make_unique<juce::WebSliderParameterAttachment> (
+            *peakParam, peakReductionRelay, nullptr);
+
+    if (auto* gainParam = processor.apvts.getParameter ("makeupGain"))
+        makeupGainAttachment = std::make_unique<juce::WebSliderParameterAttachment> (
+            *gainParam, makeupGainRelay, nullptr);
+
+    // 表头弹道（现场可调）
+    if (auto* atkParam = processor.apvts.getParameter ("meterAttack"))
+        meterAttackAttachment = std::make_unique<juce::WebSliderParameterAttachment> (
+            *atkParam, meterAttackRelay, nullptr);
+
+    if (auto* relParam = processor.apvts.getParameter ("meterRelease"))
+        meterReleaseAttachment = std::make_unique<juce::WebSliderParameterAttachment> (
+            *relParam, meterReleaseRelay, nullptr);
+
+    // 3 位表头开关（AudioParameterChoice）也走 slider relay：
+    // 归一化值 0 / 0.5 / 1 对应 Gain Reduction / Output +10 / Output +4。
+    if (auto* modeParam = processor.apvts.getParameter ("meterMode"))
+        meterModeAttachment = std::make_unique<juce::WebSliderParameterAttachment> (
+            *modeParam, meterModeRelay, nullptr);
+
+    // 旁路（面板上的 POWER 开关 → AudioParameterBool，归一化 0 / 1）
+    if (auto* bypParam = processor.apvts.getParameter ("bypass"))
+        bypassAttachment = std::make_unique<juce::WebSliderParameterAttachment> (
+            *bypParam, bypassRelay, nullptr);
+
+    // 载荷预分配：[grDb, inPeakDb, outPeakDb, vuDb, frame]
+    telemetryPayload.ensureStorageAllocated (5);
+
+    for (int i = 0; i < 5; ++i)
+        telemetryPayload.add (juce::var (0.0));
+
+    startTimerHz (30);
+}
+
+TOIRE2AWebEditor::~TOIRE2AWebEditor()
+{
+    stopTimer();
+
+    if (webView != nullptr)
+    {
+        webView->onPageLoaded = nullptr;
+
+        // 先卸掉页面再析构 WebView2：宿主退出时直接把活页面拆掉容易踩堆损坏
+        webView->goToURL ("about:blank");
+    }
+
+    webView.reset();
+
+    // attachment 引用 relay（成员），必须先于 relay 析构
+    peakReductionAttachment.reset();
+    makeupGainAttachment.reset();
+    meterAttackAttachment.reset();
+    meterReleaseAttachment.reset();
+    bypassAttachment.reset();
+    meterModeAttachment.reset();
+}
+
+void TOIRE2AWebEditor::visibilityChanged()
+{
+    // ⚠️ 延迟创建：构造期宿主消息循环还不稳，WebView2 环境也没就绪
+    if (isVisible())
+        ensureWebView();
+
+    AudioProcessorEditor::visibilityChanged();
+}
+
+void TOIRE2AWebEditor::ensureWebView()
+{
+    if (webView != nullptr)
+        return;
+
+    auto winOpts = juce::WebBrowserComponent::Options::WinWebView2{};
+
+    // ⚠️ userData 放 %APPDATA%，不要 %TEMP%（清 Temp 会让 WebView2 重新冷启动）
+    const auto userData = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                              .getChildFile ("TOIRE-2A")
+                              .getChildFile ("WebView2");
+    userData.createDirectory();
+
+    winOpts = winOpts.withUserDataFolder (userData)
+                     .withStatusBarDisabled()
+                     .withBuiltInErrorPageDisabled()
+                     .withBackgroundColour (juce::Colour (0xff0b0b0c));
+
+    const auto opts = juce::WebBrowserComponent::Options{}
+                          .withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
+                          .withWinWebView2Options (winOpts)
+                          .withKeepPageLoadedWhenBrowserIsHidden()
+                          .withOptionsFrom (peakReductionRelay)
+                          .withOptionsFrom (makeupGainRelay)
+                          .withOptionsFrom (meterAttackRelay)
+                          .withOptionsFrom (meterReleaseRelay)
+                          .withOptionsFrom (meterModeRelay)
+                          .withOptionsFrom (bypassRelay);
+
+    webView = std::make_unique<Torei2aWebView> (opts);
+
+    // ── 不抢键盘焦点 ───────────────────────────────────────
+    // JUCE 的 WebView2 在获得焦点时会把键盘交给网页（MoveFocus），
+    // 导致 DAW 的空格/快捷键全部失效。这两个开关让它永远拿不到键盘焦点，
+    // 点击只走鼠标事件 —— 我们的 UI 没有文本输入，不需要键盘。
+    webView->setWantsKeyboardFocus (false);
+    webView->setMouseClickGrabsKeyboardFocus (false);
+
+    webView->onPageLoaded = [this] (const juce::String& url)
+    {
+        // 初始 about:blank 也会回调 —— 别把它当成"页面好了"
+        if (url.startsWithIgnoreCase ("about:"))
+            return;
+
+        pageLoaded = true;
+    };
+
+    // ⚠️⚠️ 顺序是硬性的：setBounds 必须在 addAndMakeVisible 之前，否则 WebView2 永远黑屏
+    webView->setBounds (getLocalBounds());
+    webView->setOpaque (true);
+    addAndMakeVisible (*webView);
+    webView->setVisible (true);
+    webView->toFront (true);
+
+    const auto html = findWebUiIndex();
+
+    if (html.existsAsFile())
+        webView->goToURL (juce::URL (html).toString (false));
+    else
+        webView->goToURL ("about:blank");
+}
+
+void TOIRE2AWebEditor::timerCallback()
+{
+    if (webView == nullptr)
+    {
+        ensureWebView();
+
+        if (webView == nullptr)
+            return;
+    }
+
+    // 页面没加载完之前不推：事件会静默丢掉，且 JS 还没注册监听
+    if (! pageLoaded)
+        return;
+
+    const auto t = processor.getUiBridge().snapshot();
+
+    telemetryPayload.set (0, juce::var ((double) t.gainReductionDb));
+    telemetryPayload.set (1, juce::var ((double) t.inputPeakDb));
+    telemetryPayload.set (2, juce::var ((double) t.outputPeakDb));
+    telemetryPayload.set (3, juce::var ((double) t.vuDb));
+    telemetryPayload.set (4, juce::var ((double) t.frame));
+
+    // ⚠️ 只用 emitEventIfBrowserIsVisible（evaluateJavascript 在 DAW 里静默失败）
+    webView->emitEventIfBrowserIsVisible ("telemetry", telemetryPayload);
+}
+
+void TOIRE2AWebEditor::resized()
+{
+    if (webView != nullptr)
+        webView->setBounds (getLocalBounds());
+}
+
+void TOIRE2AWebEditor::paint (juce::Graphics& g)
+{
+    // 与 HTML body / 面板底色一致，避免加载期间闪白
+    g.fillAll (juce::Colour (0xff0b0b0c));
+}
+
+#endif // TOREI2A_HAS_WEBVIEW

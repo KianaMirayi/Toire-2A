@@ -1,0 +1,1038 @@
+﻿/* ── 本地化花体字体（Google Fonts · Cinzel Decorative · OFL 许可）── */
+@font-face {
+  font-family: "Cinzel Decorative";
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url("fonts/CinzelDecorative-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Cinzel Decorative";
+  font-style: normal;
+  font-weight: 900;
+  font-display: block;
+  src: url("fonts/CinzelDecorative-900.woff2") format("woff2");
+}
+/* =====================================================================
+   TOiRE-2A — modern dark UI, Material-3 elevation (950 x 263)
+
+   基线：平面化现代风格（方形深色盘 + 琥珀指针 + 中心读数）
+   本轮改动：
+     1. 背景从冷近黑换成【暖棕】，整体提亮（用户反馈"太黑了"）
+     2. 按 Material Design 3 elevation 0-5 补【分级阴影】（用户反馈"太单薄"）
+     3. 装饰开关从滑块改成【圆点】
+     4. 旋钮保留平面圆盘，去掉任何放射状纹路
+
+   约束：ES5 / 零外部依赖 / 23 个 DOM id 不变 / 950x263 / body #0b0b0c
+   ===================================================================== */
+
+:root {
+  /* ── M3 深色暖色表面层（数字越低越深）───────────────── */
+  --surface-dim:               #14100b;
+  --surface:                   #1b1610;
+  --surface-container-lowest:  #120e0a;
+  --surface-container-low:     #221c15;
+  --surface-container:         #28221a;
+  --surface-container-high:    #312a20;
+  --surface-container-highest: #3d3527;
+
+  /* ── 文字 / 描边 ─────────────────────────────────────── */
+  --on-surface:                #ece4d6;
+  --on-surface-variant:        #c9bfab;
+  --on-surface-muted:          #8d8273;
+  --outline-variant:           #3a332a;
+
+  /* ── 主色（琥珀）────────────────────────────────────── */
+  --primary:                   #e8b96a;
+  --primary-dim:               #c9963f;
+  --primary-glow:              rgba(232,185,106,.55);
+
+  /* ── 阴影（Material 3 官方 elevation）────────────────── */
+  --elev-1:
+    0 1.2px 2.5px 0 rgba(0,0,0,.30),
+    0 1.2px 3.8px 1.2px rgba(0,0,0,.15);
+  --elev-2:
+    0 1.2px 2.5px 0 rgba(0,0,0,.30),
+    0 2.5px 7.5px 2.5px rgba(0,0,0,.15);
+  --elev-3:
+    0 1.2px 3.8px 0 rgba(0,0,0,.30),
+    0 5px 10px 3.8px rgba(0,0,0,.15);
+  --elev-4:
+    0 2.5px 3.8px 0 rgba(0,0,0,.30),
+    0 7.5px 12.5px 5px rgba(0,0,0,.15);
+  --elev-5:
+    0 5px 5px 0 rgba(0,0,0,.30),
+    0 10px 15px 7.5px rgba(0,0,0,.15);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 1188px; height: 329px; overflow: hidden;
+  background: #0b0b0c;          /* 必须与 C++ 的 0xff0b0b0c 一致 */
+}
+
+body {
+  font-family: "Segoe UI", "Segoe UI Variable", Arial, sans-serif;
+  -webkit-user-select: none; user-select: none; cursor: default;
+  color: var(--on-surface);
+}
+
+#rack { position: relative; width: 1188px; height: 329px; overflow: hidden; }
+
+#errors {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+  display: none; max-height: 275px; overflow: auto;
+  padding: 10px; background: #300; color: #f88;
+  font: 15px monospace; white-space: pre-wrap;
+}
+
+/* ── 面板：暖棕底 + 顶部柔光（elevation 0）──────────────── */
+.panel {
+  position: absolute; inset: 0; overflow: hidden;
+  border: 1.2px solid #100d09;
+  background:
+    radial-gradient(130% 100% at 50% -30%,
+      #2d251b 0%, #201a13 42%, var(--surface) 72%, var(--surface-dim) 100%);
+}
+
+/* 拟物装饰全部隐藏（DOM 保留，避免 JS 找不到） */
+.tex-brush, .tex-grain, .tex-sheen, .frame,
+.screw, .mscrew, .meter-glass, .brand-rule { display: none !important; }
+
+/* ── 品牌 ─────────────────────────────────────────────────── */
+.brand { position: absolute; left: 42.5px; top: 30px; width: 412.5px; height: 75px; pointer-events: none; }
+.brand-main {
+  position: absolute; left: 0; top: 0;
+  font: 600 28.8px/32.5px "Segoe UI", Arial, sans-serif;
+  letter-spacing: 0.5px; color: var(--on-surface);
+  text-shadow: 0 1.2px 2.5px rgba(0,0,0,.55);
+}
+.brand-main span { color: var(--primary); font-weight: 700; }
+.brand-sub {
+  position: absolute; left: 1.2px; top: 38.8px;
+  font: 600 10px/12.5px "Segoe UI", Arial, sans-serif;
+  letter-spacing: 4px; color: var(--on-surface-variant);
+  text-transform: uppercase;
+}
+.brand-model {
+  position: absolute; left: 1.2px; top: 56.2px;
+  font: 500 8.8px/11.2px "Segoe UI", Arial, sans-serif;
+  letter-spacing: 2.8px; color: var(--on-surface-muted);
+  text-transform: uppercase;
+}
+
+/* ── VU 表：暖灰外壳 + elevation 3 + 米黄表盘 ─────────────── */
+.meter { position: absolute; left: 443.8px; top: 30px; width: 300px; height: 167.5px; }
+
+.meter-bezel {
+  position: relative; width: 100%; height: 100%;
+  padding: 7.5px; border-radius: 15px;
+  background: linear-gradient(180deg,
+    var(--surface-container-high) 0%,
+    var(--surface-container) 52%,
+    var(--surface-container-low) 100%);
+  box-shadow:
+    var(--elev-3),
+    inset 0 1.2px 0 rgba(255,240,215,.10),
+    inset 0 -1.2px 0 rgba(0,0,0,.55);
+}
+.meter-bezel::before {
+  content: ""; position: absolute; inset: 6.2px; border-radius: 11.2px;
+  box-shadow: inset 0 0 0 1.2px rgba(0,0,0,.62), inset 0 3.8px 10px rgba(0,0,0,.55);
+  pointer-events: none; z-index: 4;
+}
+
+.meter-face {
+  position: relative; width: 100%; height: 100%;
+  overflow: hidden; border-radius: 8.8px;
+  background: radial-gradient(120% 100% at 50% 0%,
+    #fbf3dd 0%, #f3e8ca 40%, #e7d6ae 74%, #d2bd90 100%);
+  box-shadow: inset 0 0 27.5px rgba(92,66,28,.34), inset 0 0 0 1.2px rgba(58,42,18,.5);
+}
+#meterCanvas { position: absolute; left: 0; top: 0; display: block; width: 100%; height: 100%; }
+
+/* ── GR 数字窗：内凹（elevation 1 + inset）────────────────── */
+.gr-plate {
+  position: absolute; left: 443.8px; top: 215px; width: 300px; height: 32.5px;
+  border-radius: 10px;
+  background: var(--surface-container-lowest);
+  box-shadow:
+    inset 0 1.2px 3.8px rgba(0,0,0,.75),
+    inset 0 -1.2px 0 rgba(255,240,215,.05),
+    0 1.2px 0 rgba(255,240,215,.04);
+}
+.gr-cap {
+  position: absolute; left: 15px; top: 0; line-height: 32.5px;
+  font: 600 8.8px/32.5px "Segoe UI", Arial, sans-serif;
+  letter-spacing: 2.2px; color: var(--on-surface-muted); text-transform: uppercase;
+}
+.gr-num {
+  position: absolute; right: 40px; top: 0;
+  font: 600 17.5px/32.5px Consolas, "Courier New", monospace;
+  letter-spacing: 0.4px; color: var(--primary);
+  text-shadow: 0 0 12.5px rgba(232,185,106,.28);
+}
+.gr-unit {
+  position: absolute; right: 15px; top: 0;
+  font: 600 9.4px/33.8px "Segoe UI", Arial, sans-serif;
+  letter-spacing: 0.5px; color: var(--on-surface-muted);
+}
+
+/* ── 表头三档卡片（elevation 2）──────────────────────────── */
+.meter-mode {
+  position: absolute; left: 1030px; top: 30px;
+  width: 130px; height: 97.5px;
+  padding: 8.8px 7.5px; border-radius: 15px;
+  background: var(--surface-container);
+  box-shadow:
+    var(--elev-2),
+    inset 0 1.2px 0 rgba(255,240,215,.07);
+}
+.mm-list { position: static; width: 100%; }
+.mm-opt {
+  position: relative; height: 26.2px; padding-left: 17.5px;
+  font: 600 9.4px/26.2px "Segoe UI", Arial, sans-serif;
+  letter-spacing: 0.9px; color: var(--on-surface-muted);
+  white-space: nowrap; cursor: pointer; text-transform: uppercase;
+  border-radius: 7.5px;
+  transition: color 120ms ease-out, background-color 120ms ease-out;
+}
+.mm-opt i {
+  position: absolute; left: 5px; top: 50%;
+  width: 6.2px; height: 6.2px; margin-top: -3.1px; border-radius: 50%;
+  background: #4a4135;
+  transition: background 120ms ease-out, box-shadow 120ms ease-out;
+}
+.mm-opt:hover { color: var(--on-surface-variant); background: rgba(232,185,106,.06); }
+.mm-opt.is-on {
+  color: var(--primary);
+  background: rgba(232,185,106,.10);
+  text-shadow: 0 0 12.5px rgba(232,185,106,.28);
+}
+.mm-opt.is-on i {
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--primary-glow);
+}
+.mm-rail { display: none !important; }
+
+/* ── 装饰开关：圆点（elevation 1）────────────────────────── */
+.switch {
+  position: absolute; display: flex; align-items: center; gap: 8.8px;
+  width: auto; pointer-events: none;
+}
+.sw-left  { left: 42.5px;  top: 270px; }
+.sw-right { left: 1047.5px; top: 270px; }
+.sw-label {
+  font: 600 8.8px/1 "Segoe UI", Arial, sans-serif;
+  letter-spacing: 1.8px; color: var(--on-surface-muted); text-transform: uppercase;
+}
+
+/* 圆点本体：隐藏滑块结构，只留一个 10px 的灯点 */
+.sw-body {
+  position: relative; flex: 0 0 auto;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #3f372c;
+  box-shadow:
+    var(--elev-1),
+    inset 0 1.2px 0 rgba(255,240,215,.10),
+    0 0 0 1.2px rgba(0,0,0,.35);
+}
+.sw-body::before { content: none; }
+.sw-lever { display: none !important; }
+
+/* 右侧 POWER 是"开"的状态：点亮成琥珀 */
+.sw-right .sw-body {
+  background: radial-gradient(circle at 40% 34%, #ffe2a8 0%, var(--primary) 48%, var(--primary-dim) 100%);
+  box-shadow:
+    0 0 11.2px var(--primary-glow),
+    0 0 2.5px rgba(255,226,168,.9),
+    var(--elev-1);
+}
+
+/* ── 旋钮：平面圆盘 + elevation 4 + 内凹盘 + 琥珀指针 ─────── */
+.knob-unit { position: absolute; width: 185px; height: 232.5px; cursor: ns-resize; }
+#gainUnit { left: 157.5px; top: 102.5px; }
+#peakUnit { left: 845px; top: 102.5px; }
+
+.dial { position: relative; width: 185px; height: 185px; }
+.dial canvas { position: absolute; left: 0; top: 0; display: block; width: 185px; height: 185px; }
+
+.knob {
+  position: absolute; left: 92.5px; top: 92.5px;
+  width: 130px; height: 130px; margin: -65px 0 0 -65px;
+}
+.knob-body {
+  position: relative; width: 100%; height: 100%; border-radius: 50%;
+  background: radial-gradient(circle at 50% 26%,
+    var(--surface-container-highest) 0%,
+    var(--surface-container-high) 42%,
+    var(--surface-container) 100%);
+  box-shadow:
+    var(--elev-4),
+    inset 0 1.2px 0 rgba(255,240,215,.13),
+    inset 0 -2.5px 7.5px rgba(0,0,0,.45);
+}
+
+/* 不要放射状纹路 */
+.knob-knurl { display: none !important; }
+
+/* 内盘：内凹（inset 阴影做凹槽，不是放射纹） */
+.knob-disc {
+  position: absolute; left: 50%; top: 50%;
+  width: 97.5px; height: 97.5px; margin: -48.8px 0 0 -48.8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%,
+    #241e16 0%, var(--surface-container-lowest) 72%, #0d0a07 100%);
+  box-shadow:
+    inset 0 2.5px 6.2px rgba(0,0,0,.85),
+    inset 0 -1.2px 0 rgba(255,240,215,.06),
+    0 1.2px 0 rgba(255,240,215,.05);
+}
+
+.knob-rot { position: absolute; inset: 0; transform-origin: 50% 50%; transform: rotate(0deg); }
+
+/* 指针：琥珀细线，从中心指向外缘 */
+.pointer {
+  position: absolute; left: 50%; top: 50%;
+  width: 2.5px; height: 42.5px; margin: -42.5px 0 0 -1.2px;
+  border-radius: 1.2px;
+  background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dim) 100%);
+  box-shadow: 0 0 10px var(--primary-glow);
+  transition: box-shadow 100ms ease-out;
+}
+.knob-unit.drag .pointer {
+  box-shadow: 0 0 18.8px rgba(232,185,106,.95), 0 0 5px rgba(255,226,168,.9);
+}
+.knob-hub {
+  position: absolute; left: 50%; top: 50%;
+  width: 8.8px; height: 8.8px; margin: -4.4px 0 0 -4.4px; border-radius: 50%;
+  background: #2c2519;
+  box-shadow: 0 0 0 1.2px #4a4133, 0 0 7.5px rgba(0,0,0,.6);
+}
+
+/* 读数放在旋钮正中心 */
+.knob-val {
+  position: absolute; left: 50%; top: 92.5px;
+  width: 75px; height: 25px; margin-left: -37.5px;
+  text-align: center; background: none; box-shadow: none; z-index: 3;
+}
+.knob-val span {
+  display: block;
+  font: 600 18.8px/25px Consolas, "Courier New", monospace;
+  color: var(--primary); letter-spacing: 0.6px;
+  text-shadow: 0 0 12.5px rgba(232,185,106,.30);
+}
+
+/* 参数名在旋钮下方 */
+.knob-label {
+  position: absolute; left: 0; top: 187.5px; width: 185px; text-align: center;
+  font: 600 10.6px/15px "Segoe UI", Arial, sans-serif;
+  letter-spacing: 3px; color: var(--on-surface-variant); text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 1.2px 2.5px rgba(0,0,0,.5);
+}
+
+.knob-unit:focus { outline: none; }
+.knob-unit:focus .knob-body {
+  box-shadow:
+    var(--elev-4),
+    0 0 0 1.2px rgba(232,185,106,.62),
+    0 0 0 5px rgba(232,185,106,.13),
+    inset 0 1.2px 0 rgba(255,240,215,.13);
+}
+
+/* 隐藏的表头弹道控件（DOM 保留给 JS） */
+.meter-tune { display: none !important; }
+
+/* =====================================================================
+   第六轮调整
+   1. 面板背景改成明显的渐变
+   2. 旋钮：去掉内部圆盘，改成单一渐变盘 + 外部光晕
+   3. VU 表：去掉内圈表框，表盘改渐变 + 外部光晕
+   4. COMP/LIMIT、POWER：去掉圆点，改用文字高光表示状态
+   5. VU 数值字体放大
+   ===================================================================== */
+
+/* ── 1. 面板：从左上暖棕到右下深褐的斜向渐变 ─────────────── */
+.panel {
+  border: 1.2px solid #0d0a07;
+  background:
+    radial-gradient(90% 70% at 18% 0%, rgba(90,70,42,.55) 0%, rgba(90,70,42,0) 62%),
+    linear-gradient(148deg, #2f2619 0%, #241d14 30%, #1a150f 62%, #100d09 100%);
+}
+
+/* ── 2. 旋钮：单一渐变盘 + 外部光晕 ──────────────────────── */
+.knob-body {
+  background:
+    linear-gradient(150deg,
+      #443a29 0%,
+      var(--surface-container-high) 26%,
+      #221c14 62%,
+      #15110c 100%);
+  box-shadow:
+    /* 外部光晕 */
+    0 0 42.5px rgba(232,185,106,.13),
+    0 0 15px rgba(232,185,106,.10),
+    /* 高度 */
+    var(--elev-4),
+    /* 边缘高光 */
+    inset 0 1.2px 0 rgba(255,240,215,.20),
+    inset 1.2px 0 0 rgba(255,240,215,.06),
+    inset 0 -3.8px 10px rgba(0,0,0,.55);
+}
+
+/* 去掉内部圆盘：只留它作为指针的定位容器 */
+.knob-disc {
+  position: absolute; inset: 0;
+  width: auto; height: auto; margin: 0;
+  border-radius: 50%;
+  background: none;
+  box-shadow: none;
+}
+
+/* ── 3. VU 表：去掉内圈表框，表盘渐变 + 外部光晕 ─────────── */
+.meter-bezel {
+  background: linear-gradient(160deg, #352c20 0%, #221c15 52%, #15110c 100%);
+  box-shadow:
+    0 0 50px rgba(232,185,106,.14),
+    0 0 17.5px rgba(232,185,106,.10),
+    var(--elev-3),
+    inset 0 1.2px 0 rgba(255,240,215,.14);
+}
+/* 内圈那道凹槽不要了 */
+.meter-bezel::before { content: none; }
+
+.meter-face {
+  background:
+    radial-gradient(70% 55% at 50% 8%, rgba(255,252,238,.92) 0%, rgba(255,252,238,0) 70%),
+    linear-gradient(165deg, #fdf6e2 0%, #f5ead0 28%, #ecdcb8 60%, #dcc79b 100%);
+}
+
+/* ── 4. COMP/LIMIT 与 POWER：文字高光代替圆点 ────────────── */
+.switch { gap: 10px; }
+.sw-body { display: none !important; }
+
+.sw-label {
+  transition: color 140ms ease-out, text-shadow 140ms ease-out;
+  color: #6a6154;                       /* 未选中：很暗 */
+}
+/* 左开关：COMPRESS 是当前档 */
+.sw-left .sw-label:last-child {
+  color: var(--primary);
+  text-shadow: 0 0 15px rgba(232,185,106,.65), 0 0 3.8px rgba(255,226,168,.6);
+}
+/* 右开关：ON 是当前档 */
+.sw-right .sw-label:first-child {
+  color: var(--primary);
+  text-shadow: 0 0 15px rgba(232,185,106,.65), 0 0 3.8px rgba(255,226,168,.6);
+}
+
+/* ── 5. VU 数值字体放大 ──────────────────────────────────── */
+.gr-num {
+  font: 600 25px/32.5px Consolas, "Courier New", monospace;
+  letter-spacing: 0.6px;
+  color: var(--primary);
+  text-shadow: 0 0 17.5px rgba(232,185,106,.40);
+}
+.gr-unit { font-size: 10.6px; }
+.gr-cap  { font-size: 9.4px; letter-spacing: 2.5px; }
+
+/* =====================================================================
+   第七轮调整
+   1. 旋钮数字移到下方，换艺术字体（衬线斜体）
+   2. 指针：由粗到细 + 箭头尖 + 长度抵到刻度数字底端
+   3. COMP/LIMIT、POWER 可点击切换高光
+   ===================================================================== */
+
+/* ── 1. 数字移到旋钮下方 ─────────────────────────────────── */
+.knob-label {
+  top: 180px;
+  font: 600 10px/13.8px "Segoe UI", Arial, sans-serif;
+  letter-spacing: 3.2px;
+  color: var(--on-surface-muted);
+}
+.knob-val {
+  position: absolute; left: 50%; top: 196.2px;
+  width: 100px; height: 27.5px; margin-left: -50px;
+  text-align: center; background: none; box-shadow: none; z-index: 3;
+}
+.knob-val span {
+  display: block;
+  font: italic 600 22.5px/27.5px Georgia, "Times New Roman", serif;
+  color: var(--primary); letter-spacing: 1.2px;
+  text-shadow: 0 0 17.5px rgba(232,185,106,.45), 0 1.2px 2.5px rgba(0,0,0,.6);
+}
+
+/* ── 2. 指针：锥形 + 箭头尖（长 80px，到刻度数字底端）────── */
+.pointer {
+  position: absolute; left: 50%; top: 50%;
+  width: 13.8px; height: 80px; margin: -80px 0 0 -6.9px;
+  border-radius: 0;
+  background: linear-gradient(180deg,
+    #ffe3ac 0%, var(--primary) 26%, var(--primary-dim) 74%, #a97c2c 100%);
+  -webkit-clip-path: polygon(50% 0, 100% 17%, 61% 17%, 56% 100%, 44% 100%, 39% 17%, 0 17%);
+  clip-path: polygon(50% 0, 100% 17%, 61% 17%, 56% 100%, 44% 100%, 39% 17%, 0 17%);
+  box-shadow: none;
+  filter: drop-shadow(0 0 8.8px rgba(232,185,106,.75)) drop-shadow(0 0 2.5px rgba(255,227,172,.9));
+}
+.knob-unit.drag .pointer {
+  filter: drop-shadow(0 0 16.2px rgba(232,185,106,1)) drop-shadow(0 0 5px rgba(255,227,172,1));
+}
+
+/* 指针是外部溢出的，别被裁掉 */
+.knob-body, .knob-disc, .knob-rot { overflow: visible; }
+
+/* ── 3. COMP/LIMIT 与 POWER 可点击 ───────────────────────── */
+.switch {
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 5px 7.5px;
+  border-radius: 7.5px;
+  transition: background-color 140ms ease-out;
+}
+.switch:hover { background: rgba(232,185,106,.07); }
+.switch:active { background: rgba(232,185,106,.13); }
+
+/* 左开关：默认 COMPRESS 亮；点一下换成 LIMIT 亮 */
+.sw-left .sw-label:first-child { color: #6a6154; text-shadow: none; }
+.sw-left .sw-label:last-child {
+  color: var(--primary);
+  text-shadow: 0 0 15px rgba(232,185,106,.65), 0 0 3.8px rgba(255,226,168,.6);
+}
+.sw-left.alt .sw-label:first-child {
+  color: var(--primary);
+  text-shadow: 0 0 15px rgba(232,185,106,.65), 0 0 3.8px rgba(255,226,168,.6);
+}
+.sw-left.alt .sw-label:last-child { color: #6a6154; text-shadow: none; }
+
+/* 右开关：默认 ON 亮；点一下换成 POWER 亮 */
+.sw-right .sw-label:first-child {
+  color: var(--primary);
+  text-shadow: 0 0 15px rgba(232,185,106,.65), 0 0 3.8px rgba(255,226,168,.6);
+}
+.sw-right .sw-label:last-child { color: #6a6154; text-shadow: none; }
+.sw-right.alt .sw-label:first-child { color: #6a6154; text-shadow: none; }
+.sw-right.alt .sw-label:last-child {
+  color: var(--primary);
+  text-shadow: 0 0 15px rgba(232,185,106,.65), 0 0 3.8px rgba(255,226,168,.6);
+}
+
+/* 指针长度收到刻度数字的底端（约 r=58，不压到数字） */
+.pointer {
+  height: 72.5px;
+  margin: -72.5px 0 0 -6.9px;
+}
+
+/* =====================================================================
+   第八轮调整
+   1. OUTPUT 三档去掉卡片遮罩背景
+   2. 数字与标签位置对调（数字在上、标签在下）
+   3. 指针：箭尖端细、出发端粗，并加阴影
+   ===================================================================== */
+
+/* ── 1. OUTPUT 三档：去掉卡片背景与阴影，只留文字 ────────── */
+.meter-mode {
+  background: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0;
+}
+.mm-opt.is-on { background: none !important; }
+
+/* ── 2. 数字与标签对调：数字在上、标签在下 ───────────────── */
+.knob-val {
+  top: 178.8px;
+  height: 30px;
+}
+.knob-val span {
+  font: italic 600 23.8px/30px Georgia, "Times New Roman", serif;
+}
+.knob-label {
+  top: 210px;
+}
+
+/* ── 3. 指针：箭尖端细 → 出发端粗，带投影 ───────────────── */
+.pointer {
+  width: 16.2px;
+  height: 72.5px;
+  margin: -72.5px 0 0 -8.1px;
+  -webkit-clip-path: polygon(
+    50% 0%,      /* 箭头尖 */
+    60% 11%,     /* 右倒刺 */
+    53% 11%,     /* 右杆顶（细） */
+    63% 100%,    /* 右杆底（粗） */
+    37% 100%,    /* 左杆底（粗） */
+    47% 11%,     /* 左杆顶（细） */
+    40% 11%      /* 左倒刺 */
+  );
+  clip-path: polygon(
+    50% 0%,
+    60% 11%,
+    53% 11%,
+    63% 100%,
+    37% 100%,
+    47% 11%,
+    40% 11%
+  );
+  /* 阴影：先深色偏移影，再琥珀光 */
+  filter:
+    drop-shadow(1.9px 3.1px 2.5px rgba(0,0,0,.85))
+    drop-shadow(0 0 7.5px rgba(232,185,106,.65));
+}
+.knob-unit.drag .pointer {
+  filter:
+    drop-shadow(1.9px 3.1px 2.5px rgba(0,0,0,.85))
+    drop-shadow(0 0 15px rgba(232,185,106,1));
+}
+
+/* =====================================================================
+   第九轮调整
+   1. 指针粗细反过来：箭头端粗、出发端细，且差距不大
+   2. 旋钮数字缩小、上移贴到圆盘底端（留 6.2px）
+   3. 全站字体换成艺术衬线（Palatino / Georgia）
+   ===================================================================== */
+
+/* ── 1. 指针：箭头端(上)粗 → 出发端(下)细，差距收敛 ───────── */
+.pointer {
+  width: 18.8px;
+  height: 72.5px;
+  margin: -72.5px 0 0 -9.4px;
+  -webkit-clip-path: polygon(
+    50% 0%,     /* 箭头尖 */
+    100% 12%,   /* 右倒刺 */
+    58% 12%,    /* 右杆顶（16% 宽 ≈ 3px） */
+    54% 100%,   /* 右杆底（8% 宽 ≈ 1.5px） */
+    46% 100%,   /* 左杆底 */
+    42% 12%,    /* 左杆顶 */
+    0% 12%      /* 左倒刺 */
+  );
+  clip-path: polygon(
+    50% 0%,
+    100% 12%,
+    58% 12%,
+    54% 100%,
+    46% 100%,
+    42% 12%,
+    0% 12%
+  );
+}
+
+/* ── 2. 数字缩小并上移到圆盘底端 +6.2px ───────────────────── */
+.knob-val {
+  top: 162.5px;
+  height: 22.5px;
+}
+.knob-val span {
+  font: italic 600 16.2px/22.5px "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  letter-spacing: 0.6px;
+}
+.knob-label {
+  top: 187.5px;
+}
+
+/* ── 3. 全站艺术衬线字体 ─────────────────────────────────── */
+body {
+  font-family: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, "Times New Roman", serif;
+}
+
+.brand-main {
+  font: 600 30px/35px "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  letter-spacing: 1.2px;
+}
+.brand-sub {
+  font: 600 10px/12.5px "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  letter-spacing: 4px;
+}
+.brand-model {
+  font: 500 8.8px/11.2px "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  letter-spacing: 2.8px;
+}
+
+.knob-label {
+  font: 600 11.2px/15px "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  letter-spacing: 2.8px;
+}
+
+.gr-cap, .gr-unit {
+  font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  letter-spacing: 2.5px;
+}
+.gr-num {
+  font: italic 600 25px/32.5px "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  letter-spacing: 0;
+}
+
+.mm-opt {
+  font: 600 10px/26.2px "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  letter-spacing: 1.2px;
+}
+.sw-label {
+  font: 600 9.4px/1 "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  letter-spacing: 2px;
+}
+
+/* =====================================================================
+   第十轮：箭头缩小、指针收细
+   目标：杆底 1.2px、杆顶 2.5px、箭头宽 6.2px、箭头高 5px
+   指针盒 15px 宽 × 72.5px 长，换算成百分比：
+     杆顶 2.5px  = 16.7%  → 58.3% / 41.7%
+     杆底 1.2px  =  8.3%  → 54.2% / 45.8%
+     箭头 6.2px  = 41.7%  → 70.8% / 29.2%
+     箭头高 5px =  6.9%
+   ===================================================================== */
+.pointer {
+  width: 15px;
+  height: 72.5px;
+  margin: -72.5px 0 0 -7.5px;
+  -webkit-clip-path: polygon(
+    50% 0%,
+    70.8% 6.9%,
+    58.3% 6.9%,
+    54.2% 100%,
+    45.8% 100%,
+    41.7% 6.9%,
+    29.2% 6.9%
+  );
+  clip-path: polygon(
+    50% 0%,
+    70.8% 6.9%,
+    58.3% 6.9%,
+    54.2% 100%,
+    45.8% 100%,
+    41.7% 6.9%,
+    29.2% 6.9%
+  );
+  /* 箭头小了，阴影也收一点，别糊成一团 */
+  filter:
+    drop-shadow(1.2px 2.5px 1.9px rgba(0,0,0,.8))
+    drop-shadow(0 0 6.2px rgba(232,185,106,.6));
+}
+.knob-unit.drag .pointer {
+  filter:
+    drop-shadow(1.2px 2.5px 1.9px rgba(0,0,0,.8))
+    drop-shadow(0 0 12.5px rgba(232,185,106,.95));
+}
+
+/* =====================================================================
+   第十一轮
+   1. 品牌区（TOiRE-2A / OPTICAL LEVELING AMPLIFIER / MODEL）改斜体
+   2. GR 数字窗的 "GAIN REDUCTION" 改斜体
+   3. 全局字号提一档（之前 7–11.2px 在 1440p 屏上确实糊）
+   ===================================================================== */
+
+/* ── 1. 品牌区斜体 ───────────────────────────────────────── */
+.brand-main {
+  font-style: italic;
+  letter-spacing: 1.5px;
+}
+.brand-sub {
+  font-style: italic;
+  letter-spacing: 3.8px;
+}
+.brand-model {
+  font-style: italic;
+  letter-spacing: 3px;
+}
+
+/* ── 2. GR 标签斜体 ──────────────────────────────────────── */
+.gr-cap {
+  font-style: italic;
+  letter-spacing: 2px;
+}
+
+/* ── 3. 字号整体提一档（+1.5 ~ +2.5px）────────────────────── */
+.brand-sub   { font-size: 11.9px; line-height: 15px; }
+.brand-model { font-size: 10px;   line-height: 12.5px; }
+
+.knob-label  { font-size: 12.5px;  line-height: 16.2px; letter-spacing: 3px; }
+.knob-val span { font-size: 17.5px; line-height: 22.5px; }
+
+.gr-cap      { font-size: 10.6px; letter-spacing: 2.2px; }
+.gr-unit     { font-size: 10.6px; }
+.gr-num      { font-size: 26.2px; }
+
+.mm-opt      { font-size: 11.2px; line-height: 27.5px; letter-spacing: 1.2px; }
+.sw-label    { font-size: 10.6px; letter-spacing: 2px; }
+
+/* 品牌主标也稍微放大 */
+.brand-main  { font-size: 32.5px; line-height: 37.5px; }
+
+/* canvas 上的刻度数字由 app.js 控制，这里只调 CSS 文本 */
+
+/* =====================================================================
+   第十二轮：品牌区改花体 + 渐变
+   ===================================================================== */
+.brand-main {
+  font-family: "Cinzel Decorative", "Palatino Linotype", Georgia, serif;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 2px;
+  background: linear-gradient(180deg,
+    #fff8e2 0%, #ffe0a4 26%, #e8b96a 52%, #c68f38 76%, #8f6420 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.75));
+}
+.brand-main span {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-sub {
+  font-family: "Cinzel Decorative", "Palatino Linotype", Georgia, serif;
+  font-style: normal;
+  font-weight: 700;
+  background: linear-gradient(90deg, #d8caa8 0%, #f0d9a8 40%, #c9a869 70%, #8f7340 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* GR 标签：花体 + 水平渐变 */
+.gr-cap {
+  font-family: "Cinzel Decorative", "Palatino Linotype", Georgia, serif;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  background: linear-gradient(90deg, #8d8273 0%, #e8b96a 42%, #f5d79a 58%, #8d8273 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* =====================================================================
+   第十三轮
+   1. 花体改斜体（Cinzel Decorative 没有真斜体，由浏览器合成斜切）
+   2. 指针去掉箭头尖端，只留渐细的杆
+   ===================================================================== */
+
+/* ── 1. 花体斜体 ─────────────────────────────────────────── */
+.brand-main,
+.brand-sub,
+.gr-cap {
+  font-style: italic;
+}
+
+/* ── 2. 指针：去掉箭头，只留上粗下细的杆 ─────────────────── */
+.pointer {
+  width: 15px;
+  height: 72.5px;
+  margin: -72.5px 0 0 -7.5px;
+  -webkit-clip-path: polygon(
+    58% 0%,      /* 右上（1.8px） */
+    54% 100%,    /* 右下（0.9px） */
+    46% 100%,    /* 左下 */
+    42% 0%       /* 左上 */
+  );
+  clip-path: polygon(
+    58% 0%,
+    54% 100%,
+    46% 100%,
+    42% 0%
+  );
+}
+
+/* =====================================================================
+   第十四轮：重新显示表头弹道参数（meterAttack / meterRelease）
+   布局已放大到 1188×329，重新定位到 GR 数字窗下方、中央区域
+   ===================================================================== */
+.meter-tune {
+  display: grid !important;
+  position: absolute;
+  left: 443px;
+  top: 262px;
+  width: 300px;
+  grid-template-columns: 104px 1fr 54px;
+  gap: 5px 10px;
+  align-items: center;
+  font: 600 8px/1.3 "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  letter-spacing: 1.2px;
+  color: var(--on-surface-muted);
+  text-transform: uppercase;
+}
+
+.meter-tune label {
+  font-style: italic;
+  color: var(--on-surface-muted);
+  cursor: default;
+}
+
+.meter-tune input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  background: linear-gradient(90deg, #3a3329 0%, #2a2419 100%);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.75), 0 1px 0 rgba(255,240,215,.05);
+}
+
+.meter-tune input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #ffe3ac 0%, var(--primary) 52%, #a97c2c 100%);
+  box-shadow: 0 0 7px rgba(232,185,106,.75), 0 1px 2px rgba(0,0,0,.85);
+  cursor: pointer;
+  transition: box-shadow 100ms ease-out;
+}
+.meter-tune input[type=range]:hover::-webkit-slider-thumb {
+  box-shadow: 0 0 12px rgba(232,185,106,1), 0 1px 2px rgba(0,0,0,.85);
+}
+
+.meter-tune .mt-val {
+  text-align: right;
+  color: var(--primary);
+  font-style: italic;
+  font-size: 9px;
+  text-shadow: 0 0 8px rgba(232,185,106,.35);
+}
+.meter-tune .mt-val b { font-weight: 700; font-style: normal; }
+
+/* =====================================================================
+   第十五轮：隐藏表头弹道滑块，原位置放 T4 光电池发光模块
+   ===================================================================== */
+.meter-tune { display: none !important; }
+
+/* ── T4 光电池：圆形发光单元，位于原滑块位置（面板下方中央）── */
+.t4 {
+  position: absolute;
+  left: 566px;
+  top: 256px;
+  width: 56px;
+  height: 56px;
+  pointer-events: none;
+}
+.t4-bezel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #3a3126 0%, #221c15 55%, #14100b 100%);
+  box-shadow:
+    0 0 40px rgba(232,185,106,.10),
+    var(--elev-3),
+    inset 0 1px 0 rgba(255,240,215,.14),
+    inset 0 -2px 4px rgba(0,0,0,.7);
+}
+
+/* 外发光：亮度由 JS 按 GR 设置 opacity */
+.t4-glow {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 112px; height: 112px;
+  margin: -56px 0 0 -56px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(255,214,140,.95) 0%,
+    rgba(240,170,60,.55) 26%,
+    rgba(200,120,20,.20) 52%,
+    rgba(200,120,20,0) 74%);
+  opacity: .55;
+  filter: blur(2px);
+  animation: t4breathe 4.2s ease-in-out infinite;
+}
+@keyframes t4breathe {
+  0%, 100% { transform: scale(0.90); }
+  50%      { transform: scale(1.08); }
+}
+
+/* 内核：小而亮的灯丝 */
+.t4-core {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 26px; height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 42% 36%,
+    #fff3d2 0%, #ffd27a 34%, #e8a33d 62%, #a06a18 100%);
+  box-shadow:
+    0 0 16px rgba(232,185,106,.85),
+    0 0 4px rgba(255,240,215,.95),
+    inset 0 -2px 4px rgba(120,70,10,.5);
+  opacity: .60;
+}
+
+/* 玻璃罩：一层轻微反光 */
+.t4-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    linear-gradient(150deg, rgba(255,255,255,.20) 0%, rgba(255,255,255,.04) 32%, transparent 52%),
+    radial-gradient(circle at 50% 78%, rgba(0,0,0,.35), transparent 55%);
+  box-shadow: inset 0 0 0 1px rgba(255,240,215,.12);
+}
+
+/* =====================================================================
+   第十六轮：T4 改成小小的呼吸灯（之前 56px 太大）
+   ===================================================================== */
+.t4 {
+  left: 583px;
+  top: 272px;
+  width: 24px;
+  height: 24px;
+}
+
+/* 去掉厚重的外壳，只留一个小灯点 */
+.t4-bezel {
+  background: none;
+  box-shadow: none;
+}
+
+/* 光晕：小一号，呼吸更轻 */
+.t4-glow {
+  width: 46px;
+  height: 46px;
+  margin: -23px 0 0 -23px;
+  background: radial-gradient(circle,
+    rgba(255,220,155,.85) 0%,
+    rgba(235,160,55,.42) 30%,
+    rgba(200,120,20,.14) 55%,
+    rgba(200,120,20,0) 72%);
+  opacity: .50;
+  filter: blur(1.5px);
+  animation: t4breathe 4.6s ease-in-out infinite;
+}
+
+/* 灯点：12px 的小圆点 */
+.t4-core {
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  background: radial-gradient(circle at 42% 36%,
+    #fff6dd 0%, #ffd88a 38%, #e8a33d 72%, #a06a18 100%);
+  box-shadow:
+    0 0 9px rgba(232,185,106,.85),
+    0 0 2px rgba(255,244,220,.95);
+  opacity: .55;
+}
+
+/* 玻璃罩不要了 */
+.t4-glass { display: none; }
+
+/* =====================================================================
+   第十七轮：T4 的"呼吸"是【亮度】起伏，不是尺寸缩放
+   亮度完全由 JS 驱动（数值 + 正弦波），CSS 不再做 scale 动画
+   ===================================================================== */
+.t4-glow {
+  animation: none !important;
+  transform: none !important;
+  opacity: .50;
+  transition: none;
+  will-change: opacity;
+}
+.t4-core {
+  opacity: .55;
+  transition: none;
+  will-change: opacity;
+}

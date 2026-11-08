@@ -1,0 +1,148 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>TOiRE-2A</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ⚠️ WebView2 没有 DevTools：任何 JS 错误都显示在这条红带上 -->
+<div id="errors"></div>
+
+<div id="rack">
+  <div class="panel" id="panel">
+
+    <div class="tex-brush"></div>
+    <div class="tex-grain"></div>
+    <div class="tex-sheen"></div>
+    <div class="frame"></div>
+
+    <!-- 四角十字槽螺丝（中心 16,16 / 934,16 / 16,247 / 934,247） -->
+    <div class="screw" style="left:9px;top:9px"><i style="transform:rotate(24deg)"></i></div>
+    <div class="screw" style="right:9px;top:9px"><i style="transform:rotate(-38deg)"></i></div>
+    <div class="screw" style="left:9px;bottom:9px"><i style="transform:rotate(71deg)"></i></div>
+    <div class="screw" style="right:9px;bottom:9px"><i style="transform:rotate(12deg)"></i></div>
+
+    <!-- 左上角标牌 -->
+    <div class="brand">
+      <div class="brand-main">TOiRE<span>-2A</span></div>
+      <div class="brand-rule"></div>
+      <div class="brand-sub">OPTICAL LEVELING AMPLIFIER</div>
+      <div class="brand-model">MODEL TOiRE-2A</div>
+    </div>
+
+    <!-- 中央 VU 表（x 350-600 / y 32-150） -->
+    <div class="meter">
+      <div class="meter-bezel">
+        <i class="mscrew ms-tl"></i><i class="mscrew ms-tr"></i>
+        <i class="mscrew ms-bl"></i><i class="mscrew ms-br"></i>
+        <div class="meter-face">
+          <canvas id="meterCanvas"></canvas>
+          <div class="meter-glass"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 表下数字窗 -->
+    <div class="gr-plate">
+      <span class="gr-cap" id="grCap">GAIN REDUCTION</span>
+      <span class="gr-num" id="grNum">0.0</span>
+      <span class="gr-unit">dB</span>
+    </div>
+
+    <!-- 3 位表头开关（接 meterMode 参数） -->
+    <div class="meter-mode" id="meterMode">
+      <div class="mm-list">
+        <div class="mm-opt is-on" data-mode="0"><i></i>GAIN REDUCTION</div>
+        <div class="mm-opt" data-mode="1"><i></i>OUTPUT +10</div>
+        <div class="mm-opt" data-mode="2"><i></i>OUTPUT +4</div>
+      </div>
+      <div class="mm-rail" id="mmRail">
+        <i class="mm-notch n0"></i><i class="mm-notch n1"></i><i class="mm-notch n2"></i>
+        <div class="mm-thumb" id="mmThumb"></div>
+      </div>
+    </div>
+
+    <!-- 左侧拨杆：LIMIT / COMPRESS（纯视觉） -->
+    <div class="switch sw-left">
+      <div class="sw-label">LIMIT</div>
+      <div class="sw-body"><div class="sw-lever"></div></div>
+      <div class="sw-label">COMPRESS</div>
+    </div>
+
+    <!-- 右侧拨杆：ON / POWER（纯视觉） -->
+    <div class="switch sw-right">
+      <div class="sw-label">ON</div>
+      <div class="sw-body"><div class="sw-lever sw-lever-down"></div></div>
+      <div class="sw-label">POWER</div>
+    </div>
+
+    <!-- GAIN（中心 200,148） -->
+    <div class="knob-unit" id="gainUnit">
+      <div class="dial"><canvas id="gainDial"></canvas></div>
+      <div class="knob" id="gainKnob">
+        <div class="knob-body">
+          <div class="knob-knurl"></div>
+          <div class="knob-disc">
+            <div class="knob-rot" id="gainRot"><div class="pointer"></div></div>
+            <div class="knob-hub"></div>
+          </div>
+        </div>
+      </div>
+      <div class="knob-label">GAIN</div>
+      <div class="knob-val"><span id="gainNum">50</span></div>
+    </div>
+
+    <!-- PEAK REDUCTION（中心 750,148） -->
+    <div class="knob-unit" id="peakUnit">
+      <div class="dial"><canvas id="peakDial"></canvas></div>
+      <div class="knob" id="peakKnob">
+        <div class="knob-body">
+          <div class="knob-knurl"></div>
+          <div class="knob-disc">
+            <div class="knob-rot" id="peakRot"><div class="pointer"></div></div>
+            <div class="knob-hub"></div>
+          </div>
+        </div>
+      </div>
+      <div class="knob-label">PEAK REDUCTION</div>
+      <div class="knob-val"><span id="peakNum">30</span></div>
+    </div>
+
+    <!-- T4 光电池发光模块（亮度跟随 GR，静息时缓慢呼吸） -->
+    <div class="t4" id="t4">
+      <div class="t4-bezel">
+        <div class="t4-glow" id="t4Glow"></div>
+        <div class="t4-core" id="t4Core"></div>
+        <div class="t4-glass"></div>
+      </div>
+    </div>
+    <!-- 表头弹道（底部居中，y≈225） -->
+    <div class="meter-tune">
+      <label for="mAtk">METER ATTACK</label>
+      <input type="range" id="mAtk" min="5" max="300" step="1">
+      <span class="mt-val"><b id="mAtkNum">62</b></span>
+
+      <label for="mRel">METER RELEASE</label>
+      <input type="range" id="mRel" min="30" max="2000" step="1">
+      <span class="mt-val"><b id="mRelNum">110</b></span>
+    </div>
+
+  </div>
+</div>
+
+<script>
+window.onerror = function (m, s, l) {
+  var el = document.getElementById("errors");
+  if (!el) return false;
+  el.style.display = "block";
+  el.textContent += "\n" + m + "  @  " + s + ":" + l;
+  return false;
+};
+</script>
+<script src="juce-bridge.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

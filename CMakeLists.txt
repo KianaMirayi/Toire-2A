@@ -38,7 +38,6 @@ target_sources(TOIRE2A PRIVATE
 target_include_directories(TOIRE2A PRIVATE src)
 
 target_compile_definitions(TOIRE2A PUBLIC
-    JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0)
 
@@ -56,18 +55,45 @@ target_link_libraries(TOIRE2A
         juce::juce_recommended_warning_flags)
 
 # ─────────────────────────────────────────────────────────────
-# WebView2 前端（预留）
+# WebView2 前端
+#   ON ：WebView2 + WebUI/（网页前端）
+#   OFF：原生 JUCE UI
+# 切换只改这一个选项，DSP / Bridge 层完全不动。
 # ─────────────────────────────────────────────────────────────
 if(TOIRE2A_WEBVIEW2)
+    # NuGet 包里的 WebView2 SDK（build 是符号链接 -> 1.0.1901.177/build）
     set(WEBVIEW2_SDK "C:/Users/Admin/.nuget/packages/Microsoft.Web.WebView2")
     target_include_directories(TOIRE2A PRIVATE "${WEBVIEW2_SDK}/build/native/include")
+
     target_compile_definitions(TOIRE2A PUBLIC
         JUCE_WEB_BROWSER=1
         JUCE_USE_WIN_WEBVIEW2=1
         TOREI2A_HAS_WEBVIEW=1)
+
     target_link_libraries(TOIRE2A PRIVATE juce::juce_gui_extra)
-    message(STATUS "TOIRE-2A: WebView2 frontend ENABLED")
+
+    # ── 前端资源 + WebView2Loader.dll 一起摆到产物旁边 ──────────
+    #   Standalone/TOIRE-2A.exe        ← 同目录 webui/
+    #   VST3/TOIRE-2A.vst3/Contents/   ← Contents/webui/
+    set(WEBUI_SRC   "${CMAKE_CURRENT_SOURCE_DIR}/WebUI")
+    set(WEBVIEW2_DLL "${WEBVIEW2_SDK}/build/native/x64/WebView2Loader.dll")
+
+    add_custom_command(TARGET TOIRE2A POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${WEBUI_SRC}" "$<TARGET_FILE_DIR:TOIRE2A>/Standalone/webui"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${WEBUI_SRC}" "$<TARGET_FILE_DIR:TOIRE2A>/VST3/TOIRE-2A.vst3/Contents/webui"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${WEBVIEW2_DLL}" "$<TARGET_FILE_DIR:TOIRE2A>/Standalone/WebView2Loader.dll"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${WEBVIEW2_DLL}" "$<TARGET_FILE_DIR:TOIRE2A>/VST3/TOIRE-2A.vst3/Contents/x86_64-win/WebView2Loader.dll"
+        COMMENT "TOIRE-2A: deploying webui/ + WebView2Loader.dll"
+        VERBATIM)
+
+    message(STATUS "TOIRE-2A: WebView2 frontend ENABLED  (webui -> Standalone/ + VST3/Contents/)")
 else()
-    target_compile_definitions(TOIRE2A PUBLIC TOREI2A_HAS_WEBVIEW=0)
+    target_compile_definitions(TOIRE2A PUBLIC
+        JUCE_WEB_BROWSER=0
+        TOREI2A_HAS_WEBVIEW=0)
     message(STATUS "TOIRE-2A: native UI (WebView2 disabled)")
 endif()
