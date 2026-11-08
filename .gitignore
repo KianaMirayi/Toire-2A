@@ -1,0 +1,60 @@
+# ── 构建产物 ────────────────────────────────────────────
+build/
+Build/
+out/
+*.user
+*.sln.docstates
+.vs/
+.vscode/settings.json
+# JUCE 生成的代码
+JuceLibraryCode/
+**/JuceLibraryCode/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CMakeUserPresets.json
+
+# 二进制
+*.vst3
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.obj
+*.exp
+
+# ── 测量用的音频素材（体积大、可再生成）────────────────
+measure/signals/
+measure/renders/
+measure/bin/*.exe
+measure/bin/*.log
+*.wav
+*.aif
+*.aiff
+*.flac
+*.mp3
+
+# ── 分析产物（可重新生成）──────────────────────────────
+docs/reports/
+docs/references/
+*.png
+*.csv
+
+# ── 本地笔记 / 文档（用户要求不入库）──────────────────
+*.md
+!README.md
+
+# ── 系统 ───────────────────────────────────────────────
+Thumbs.db
+desktop.ini
+.DS_Store
+*.local
+.env
+
+# Python
+__pycache__/
+*.pyc
+

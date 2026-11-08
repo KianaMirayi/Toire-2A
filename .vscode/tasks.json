@@ -1,0 +1,61 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "CMake: configure (MSVC 2026)",
+            "type": "shell",
+            "command": "${workspaceFolder}\\scripts\\configure.bat",
+            "args": [],
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "CMake: build (MSVC 2026)",
+            "type": "shell",
+            "command": "${workspaceFolder}\\scripts\\build.bat",
+            "args": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$msCompile"
+            ]
+        },
+        {
+            "label": "CMake: build Standalone only (fast)",
+            "type": "shell",
+            "command": "${workspaceFolder}\\scripts\\build.bat",
+            "args": [
+                "Debug",
+                "TOIRE2A_Standalone"
+            ],
+            "group": "build",
+            "problemMatcher": [
+                "$msCompile"
+            ]
+        },
+        {
+            "label": "CMake: build Release",
+            "type": "shell",
+            "command": "${workspaceFolder}\\scripts\\build.bat",
+            "args": [
+                "Release"
+            ],
+            "group": "build",
+            "problemMatcher": [
+                "$msCompile"
+            ]
+        },
+        {
+            "label": "CMake: configure + build",
+            "dependsOn": [
+                "CMake: configure (MSVC 2026)",
+                "CMake: build (MSVC 2026)"
+            ],
+            "dependsOrder": "sequence",
+            "group": "build",
+            "problemMatcher": []
+        }
+    ]
+}
