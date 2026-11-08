@@ -58,3 +58,16 @@ desktop.ini
 __pycache__/
 *.pyc
 
+
+# ===== measurement / analysis tooling (not part of the plugin) =====
+tools/
+measure/*.py
+measure/*.npy
+measure/*.csv
+measure/*.txt
+measure/host/ui-probe.cpp
+measure/host/build/
+docs/*.md
+docs/reports/
+*.before-scale
+*.bak
