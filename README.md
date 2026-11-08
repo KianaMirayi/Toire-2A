@@ -1,145 +1,225 @@
 # TOiRE-2A
 
-LA-2A 风格光电式电平控制器（JUCE 8 插件，VST3 + Standalone）。
+一个用 JUCE 8 写的 **Teletronix LA-2A 光电压缩器**模拟插件（VST3 / Standalone，64 位 Windows）。
+界面用 **WebView2** 渲染，DSP 用行为模型拟合 **UAD LA-2A** 的实测数据。
 
-> 状态：**原型 0.1** — 项目骨架已可编译运行，DSP 为行为模型初版，常数待用 RF-2A 实测校准。
-
----
-
-## 目录结构
-
-```
-TOiRE-2A/
-├── CMakeLists.txt              # JUCE 8.0.7，VS 2026，VST3 + Standalone
-├── CMakePresets.json           # vs2026 / vs2026-web
-├── docs/
-│   └── LA-2A-implementation-notes.md   # 电路原理与建模笔记（先读这个）
-├── src/
-│   ├── PluginProcessor.h/.cpp  # 参数、processBlock、遥测发布
-│   ├── PluginEditor.h/.cpp     # 原生 UI（当前阶段）
-│   ├── Bridge/
-│   │   └── UiBridge.h          # DSP → UI 无锁桥（前端无关）
-│   └── DSP/
-│       └── LA2ACompressor.h/.cpp   # T4 行为模型
-├── WebUI/
-│   └── README.md               # 切换 WebView2 前端的步骤
-└── Resources/                  # 预留给 Web 前端产物
-```
+![TOiRE-2A](docs/screenshot.png)
 
 ---
 
-## 构建
+## 它是什么
 
-依赖：Visual Studio 2026（MSVC 19.51）、CMake ≥ 3.22、JUCE 在 `../JUCE`（8.0.7）。
+LA-2A 是 1960 年代的光电压缩器，核心是一个 **T4 光电池**（CdS 光敏电阻 + EL 发光面板）。
+它的声音特点是：
 
-### 命令行
+- **只有两个旋钮** —— Peak Reduction（压缩量）和 Gain（补偿增益）
+- **反馈式拓扑** —— 侧链取的是压缩后的信号，所以压缩特性是"自适应"的
+- **柔软、粘连、有呼吸感** —— 光学元件的惯性带来的
 
-```bash
-cd E:/Programing/C++Hell/TOiRE-2A
+这个插件试图复现这些行为，而不是简单地挂一个压缩器。
+
+---
+
+## 功能
+
+### 控件
+
+| 控件 | 作用 |
+|---|---|
+| **PEAK REDUCTION** | 压缩量（对应真机 0–100 刻度） |
+| **GAIN** | 补偿增益（逐点实测的非线性曲线） |
+| **GAIN REDUCTION / OUTPUT +10 / OUTPUT +4** | 表头三档（点行切换） |
+| **COMPRESS / LIMIT** | 视觉装饰（DSP 里暂无对应参数） |
+| **ON / POWER** | **真实的 bypass**（逐采样直通，已验证误差 0） |
+| **T4 呼吸灯** | 亮度跟随 GR，静息时缓慢呼吸 |
+
+### 隐藏参数（DAW 里可见、可自动化）
+
+| 参数 | 范围 | 默认 | 说明 |
+|---|---|---|---|
+| `meterAttack` | 5–300 ms | **62** | 表头起针 |
+| `meterRelease` | 30–2000 ms | **110** | 表头回落 |
+| `meterMode` | 0/1/2 | 0 | GR / Output+10 / Output+4 |
+| `bypass` | on/off | off | 旁路 |
+
+---
+
+## 安装
+
+### 用安装包（推荐）
+
+从 [Releases](../../releases) 下载 `TOIRE-2A-1.0.0-win64.exe`，双击安装。
+
+```
+安装到 : C:\Program Files\Common Files\VST3\TOIRE-2A.vst3
+需要   : Windows 10 1809+ / 64 位
+依赖   : Microsoft Edge WebView2（安装程序会自动检测并安装）
+```
+
+装完在 DAW 里点一次"重新扫描插件"即可。
+
+> 想试装到别处而不影响正式安装：
+> `TOIRE-2A-1.0.0-win64.exe /DIR="D:\test\TOIRE-2A.vst3" /CURRENTUSER`
+
+### 卸载
+
+控制面板 → 程序和功能 → **TOIRE-2A 1.0.0 (VST3)**。
+只删 `...\VST3\TOIRE-2A.vst3` 这一个文件夹。
+
+用户数据（`%APPDATA%\TOiRE-2A`，WebView2 的缓存）**不会**被删除 —— 需要的话手动清理。
+
+---
+
+## 从源码构建
+
+### 依赖
+
+- **Visual Studio 2026**（MSVC 19.51）
+- **CMake ≥ 3.22**
+- **JUCE 8.0.7**，放在 `../JUCE`
+- **WebView2 SDK**（NuGet 包 `Microsoft.Web.WebView2`）
+
+### 命令
+
+```bat
 cmake --preset vs2026
-cmake --build build --config Debug
+cmake --build build --config Release
 ```
 
-只编 Standalone：
+产物：
 
-```bash
-cmake --build build --config Debug --target TOIRE2A_Standalone
+```
+build\TOIRE2A_artefacts\Release\VST3\TOIRE-2A.vst3
+build\TOIRE2A_artefacts\Release\Standalone\TOIRE-2A.exe
 ```
 
-产物：`build/TOIRE2A_artefacts/Debug/Standalone/TOIRE-2A.exe`
-VST3 会自动安装到 `C:\Program Files\Common Files\VST3\TOIRE-2A.vst3`
+> ⚠️ 构建前必须清掉代理环境变量，否则 MSVC 可能报 `MSB6001`：
+> ```powershell
+> Remove-Item Env:HTTP_PROXY,Env:https_proxy,Env:ALL_PROXY,Env:NO_PROXY -ErrorAction SilentlyContinue
+> ```
+
+### 关闭 WebView2 前端（回到原生 UI）
+
+```bat
+cmake -B build -S . -DTOIRE2A_WEBVIEW2=OFF
+```
 
 ### VSCode
 
-> ⚠️ **坑：VSCode 默认终端是 PowerShell，而 `vcvarsall.bat` 是 cmd 语法。**
-> 直接在 tasks.json 里写 `command: "cmd"` + 带引号的路径会被 PowerShell 二次解析，
-> 报 `'C:\Program' 不是内部或外部命令`。
->
-> **解决：构建逻辑放进 `scripts/*.bat`，任务只负责调脚本**（已实现）。
-
-仓库已带 `.vscode/` 和 `scripts/`，打开文件夹即可用：
+仓库自带 `.vscode/` 和 `scripts/`：
 
 | 操作 | 方式 |
 |---|---|
-| 构建（默认） | `Ctrl+Shift+B` |
-| 其它构建任务 | `Ctrl+Shift+P` → `Tasks: Run Task` |
-| 调试 | `F5`（自动先构建 Standalone） |
-| 智能提示 | 由 CMake Tools 提供，首次打开会自动 configure |
+| 构建 | `Ctrl+Shift+B` |
+| 其它任务 | `Ctrl+Shift+P` → `Tasks: Run Task` |
+| 调试 | `F5` |
 
-任务列表：
-
-- `CMake: configure (MSVC 2026)` → `scripts/configure.bat`
-- `CMake: build (MSVC 2026)` ← 默认构建任务（VST3 + Standalone）
-- `CMake: build Standalone only (fast)` ← 只编 exe，最快
-- `CMake: build Release`
-- `CMake: configure + build`
-
-命令行等价写法：
-
-```bat
-scripts\configure.bat
-scripts\build.bat
-scripts\build.bat Debug TOIRE2A_Standalone
-scripts\build.bat Release
-```
-
-需要的扩展（`extensions.json` 会提示）：`ms-vscode.cmake-tools`、`ms-vscode.cpptools`。
-
-> 即使 CMake Tools 不认 `Visual Studio 18 2026` 生成器也没关系 —— 任务走的是
-> `scripts/build.bat`，自己 `call vcvarsall`，完全不依赖扩展。
-
-
-### 首次运行
-
-Standalone 第一次启动会弹 **Audio/MIDI Settings** 对话框选声卡，关掉后就是插件主界面。
+> 坑：VSCode 默认终端是 PowerShell，而 `vcvarsall.bat` 是 cmd 语法。
+> 所以构建逻辑全部放进了 `scripts/*.bat`，任务只负责调用脚本。
 
 ---
 
-## 架构要点
+## 打包安装包
 
-**三层分离，DSP 不认识 UI：**
+```powershell
+powershell -ExecutionPolicy Bypass -File installer\build-installer.ps1
+```
+
+产物：`dist\TOIRE-2A-<version>-win64.exe` + `dist\SHA256-installer.txt`
+
+`installer/deps/` 里需要放两个文件（不入库）：
 
 ```
-LA2ACompressor (纯 DSP)
+MicrosoftEdgeWebview2Setup.exe    WebView2 引导程序
+ChineseSimplified.isl             安装向导的中文语言文件
+```
+
+---
+
+## 架构
+
+```
+LA2ACompressor     纯 DSP，不 include 任何 UI 头
       │
-      ▼  UiTelemetry
-   UiBridge  (std::atomic，无锁)
+      ▼ UiTelemetry
+   UiBridge        无锁（std::atomic），唯一的 DSP → UI 出口
       │
-      ├──► 原生 Editor（现在）
-      └──► WebView Editor（以后）
+      ├──▶ 原生 Editor（JUCE 控件，可用 -DTOIRE2A_WEBVIEW2=OFF 切换）
+      └──▶ WebView Editor（本仓库默认，1188×329）
 ```
 
-- `LA2ACompressor` 不 include 任何 UI 头
-- `UiBridge` 是唯一出口，`toWebPayload()` 已备好 WebView 用的载荷
-- 换前端只改 `PluginProcessor::createEditor()` 一行，见 `WebUI/README.md`
+**换前端只需要改 `PluginProcessor::createEditor()` 里的一行。**
+
+### 目录
+
+```
+src/
+  DSP/LA2ACompressor.h/.cpp    T4 行为模型（光电池 + 反馈环 + 饱和）
+  Bridge/UiBridge.h            DSP → UI 无锁遥测
+  PluginProcessor.h/.cpp       参数、processBlock
+  PluginEditor.h/.cpp          原生 UI + WebView UI
+  UI/LA2AKnobLookAndFeel.h     原生旋钮外观
+
+WebUI/                         WebView2 前端（纯 HTML/CSS/JS，ES5，零依赖）
+  index.html
+  style.css
+  app.js                       旋钮交互 + VU 表 canvas 绘制
+  juce-bridge.js               C++ ↔ JS 通信层
+  fonts/                       Cinzel Decorative（OFL，本地化，不走 CDN）
+
+installer/                     Inno Setup 6 打包脚本
+```
 
 ---
 
-## DSP 参数
+## DSP 校准
 
-| 参数 | 范围 | 说明 |
-|---|---|---|
-| Peak Reduction | 0..1 | 映射到 -30..0 dB 阈值 |
-| Gain | -24..+30 dB | 补偿增益 |
+模型参数不是猜的，是**逐项对 UAD LA-2A 实测**拟合出来的。
 
-内部 T4 模型常数（`LA2ACompressor.cpp` 顶部）：
+### 关键结论
 
-| 常数 | 当前值 | 依据 |
-|---|---|---|
-| `kAttackMs` | 10 ms | UA 官方手册（固定攻击时间） |
-| `kReleaseMs` | 60 ms | 50% 释放时间 |
-| `kTailMs` | 450 ms | 余辉长尾（待校准） |
-| `kGamma` | 0.7 | CdS 光照→电阻指数（待校准） |
-| `kRMin` | 0.02 | 最小电阻（最大压缩量） |
+| 项目 | 结果 |
+|---|---|
+| **静态曲线**（全 Peak 稳态扫描） | 最大误差 **≤ 0.61 dB** |
+| **释放曲线**（500 ms 过载后） | 全程 **≤ 0.36 dB** |
+| **Attack**（1–20 ms） | **≤ 0.25 dB** |
+| **谐波** H2–H5（工作区间） | 平均 **3.4 dB** |
+| **Bypass** | 逐采样直通，误差 **0.000e+00** |
+| **GR 包络相关度**（真实素材） | **0.967** |
 
-> ⚠️ 这些是**文献共识值**，不是从 RF-2A 反推的。校准方法见
-> `docs/LA-2A-implementation-notes.md` 第 7 节。
+### 几个反直觉的发现
+
+1. **释放不是指数衰减，是双曲的** —— `GR ∝ 1/t`，即 `τ = A/GR^1.8 + 45ms`。
+   用单指数拟合 RMS 会差 4.7 倍。
+
+2. **饱和接近硬限幅**（n ≈ 30），不是 tanh —— 这才是 UAD 那种
+   "压缩不多但 THD 很高" 的来源。
+
+3. **侧链取在 makeup 之前** —— 这就是手册说"Gain 不影响压缩"的原因。
+   取在后面是一个真实的 bug，会让 Gain 25 时压缩量差 7 dB。
+
+4. **静态求解对反馈环无效** —— 斜率 > 1 所以定点不稳定，
+   实际行为由滤波器惯性决定，必须逐采样仿真。
+
+### 已知偏差
+
+- **高电平素材（母带成品，RMS ≈ −9 dBFS）压缩量浅约 2 dB**
+  分轨混音电平下（−20 ~ −14 dBFS RMS）误差在 1 dB 内。
+  根因是反馈环的静态斜率上限 `k/(1+k) < 1`，而真实光电池有电荷累积。
+- **COMPRESS / LIMIT 是纯视觉** —— DSP 里没有对应参数。
 
 ---
 
-## 已知限制
+## 许可与致谢
 
-- 未实现侧链预加重（高频更敏感 / 压缩越深越暗）
-- 未实现变压器与电子管染色
-- 未做过采样（当前非线性不重，暂不需要）
-- release 只有两段（EL + 余辉），真实 T4 是多段
+- **JUCE** —— GPL / 商业双许可，见 [juce.com](https://juce.com)
+- **Cinzel Decorative** —— SIL Open Font License 1.1，本地化打包（不走 CDN）
+- LA-2A / Teletronix 是 Universal Audio 的商标。
+  本插件是**独立的算法研究项目**，与 Universal Audio 无关联，也未使用其任何代码或模型。
+
+---
+
+## 状态
+
+**1.0.0** —— 可用于分轨混音。
+DAW 兼容性测试过：Cubase / Nuendo / Fender Studio Pro / Reaper。

@@ -79,3 +79,6 @@ measure/
 dist/
 installer/payload/
 installer/deps/*.exe
+
+# 允许 README 用的截图入库
+!docs/screenshot.png
