@@ -1,0 +1,56 @@
+﻿TOIRE-2A  —— 安装前请先看这一段
+============================================================
+
+这是什么
+--------
+TOIRE-2A 是一个模拟 Teletronix LA-2A 光电压缩器的 VST3 插件（64 位 Windows）。
+界面用 Microsoft Edge WebView2 渲染，所以除了插件本体，还需要系统里
+装有 WebView2 运行时。
+
+安装位置
+--------
+    C:\Program Files\Common Files\VST3\TOIRE-2A.vst3
+
+这是 VST3 的标准共享目录，绝大多数 DAW（Cubase / Nuendo / Studio Pro /
+Reaper / Bitwig / Live / FL Studio …）都会自动扫描到这里。
+
+装完后如果 DAW 里看不到插件，先做这两件事：
+  1. 在 DAW 的插件管理器里点一次"重新扫描"；
+  2. 确认 DAW 是 64 位版本（本插件只有 64 位）。
+
+WebView2 运行时
+---------------
+安装程序会自动检测 WebView2 运行时。
+  - 已经装了  → 跳过，不会联网
+  - 没有装    → 自动运行微软的 Evergreen 引导程序（需要联网，约几十秒）
+
+Windows 11 全部自带；Windows 10 的较新版本一般也自带。
+如果那一步失败（比如机器不能联网），插件装好但界面会是白屏 ——
+这时可以手动装一次：
+    https://developer.microsoft.com/microsoft-edge/webview2/
+
+关于"安装到哪里"
+----------------
+安装程序固定装到标准 VST3 目录，不提供"选择安装位置"的界面。
+如果你要试装到别的地方（比如临时目录，不影响正式安装），可以用命令行：
+
+    TOIRE-2A-1.0.0-win64.exe /DIR="D:\test\TOIRE-2A.vst3" /CURRENTUSER
+
+用户设置与清除
+--------------
+插件会把 WebView2 的用户数据写在：
+    %APPDATA%\TOIRE-2A
+
+卸载程序【不会】删除这个目录 —— 那属于用户数据。
+要彻底清理，卸载后手动删掉这个文件夹即可。
+
+卸载
+----
+控制面板 → 程序和功能 → "TOIRE-2A 1.0.0 (VST3)" → 卸载。
+卸载只删除 C:\Program Files\Common Files\VST3\TOIRE-2A.vst3 这个文件夹，
+不会碰任何 DAW 工程、预设或用户设置。
+
+版本
+----
+    TOIRE-2A 1.0.0
+    TOREI AUDIO LABS

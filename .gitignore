@@ -74,3 +74,8 @@ docs/reports/
 
 # 整个 measure/ 目录都不入库（只保留本地：测量宿主、脚本、素材）
 measure/
+
+# 安装包：产物与中间文件不入库
+dist/
+installer/payload/
+installer/deps/*.exe
