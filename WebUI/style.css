@@ -1169,3 +1169,75 @@ body {
   font-size: 9.5px;
   background-position: calc(100% - 11px) 8px, calc(100% - 7px) 8px;
 }
+
+/* =====================================================================
+   第十八轮
+   ① 中间整组（VU 表 + GR 读数 + T4 呼吸灯）下移 10px
+   ② 品牌 logo 换成 Bodoni Moda Italic（真斜体、高对比、线条纤细）
+   ===================================================================== */
+
+/* ── ① 中间组下移 10px ── */
+.meter    { top: 40px  !important; }   /* 原 30  */
+.gr-plate { top: 225px !important; }   /* 原 215 */
+.t4       { top: 282px !important; }   /* 原 272 */
+/* 表头三档卡片也跟着往下，保持和 VU 表同一视觉中线 */
+.meter-modes { top: 34px !important; } /* 原 24  */
+
+/* ── ② 品牌字体：Bodoni Moda Italic ── */
+@font-face {
+  font-family: "Bodoni Moda";
+  font-style: italic;
+  font-weight: 400;
+  font-display: block;
+  src: url("fonts/BodoniModa-italic-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Bodoni Moda";
+  font-style: italic;
+  font-weight: 700;
+  font-display: block;
+  src: url("fonts/BodoniModa-italic-700.woff2") format("woff2");
+}
+
+.brand-main {
+  font-family: "Bodoni Moda", "Palatino Linotype", Georgia, serif !important;
+  font-style: italic !important;
+  font-weight: 400 !important;        /* 原来是 Cinzel Decorative 900（很粗） */
+  letter-spacing: 1.8px !important;
+  /* 渐变保留，稍微提亮 */
+  background: linear-gradient(178deg,
+      #fff6e2 0%,
+      #f0d9a8 26%,
+      #e8b96a 52%,
+      #c9a869 74%,
+      #8f7340 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+/* 连字符/数字那一截（<span>）单独控制，颜色更暖一点 */
+.brand-main span {
+  font-family: "Bodoni Moda", "Palatino Linotype", Georgia, serif !important;
+  font-style: italic !important;
+  font-weight: 700 !important;
+  background: linear-gradient(178deg, #ffe9bd 0%, #e8b96a 48%, #b8893c 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+/* 副标题也用同一个字族，但更细、字距更开 */
+.brand-sub {
+  font-family: "Bodoni Moda", "Palatino Linotype", Georgia, serif !important;
+  font-style: italic !important;
+  font-weight: 400 !important;
+  letter-spacing: 5.2px !important;
+  background: linear-gradient(90deg, #b9a883 0%, #e8d3a8 45%, #a08a5f 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
