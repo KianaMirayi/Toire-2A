@@ -1098,3 +1098,74 @@ body {
   background: #1b1610;
   color: #e9e7e2;
 }
+
+/* ── 预设条移到最顶部，做成横条（像 UAD 的 preset bar）───────── */
+.preset-bar {
+  position: absolute;
+  left: 400px;
+  top: 1px;
+  width: 390px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 6;
+  padding: 0 2px;
+}
+
+/* 底部一条极淡的底色，让它像"条"而不是漂浮的控件 */
+.preset-bar::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  right: -10px;
+  top: -1px;
+  bottom: -1px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(0,0,0,.42) 0%, rgba(0,0,0,.18) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,240,215,.06), 0 1px 0 rgba(0,0,0,.35);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* 顶部横条里，下拉和按钮做矮一点 */
+.preset-bar .preset-nav {
+  width: 20px;
+  height: 18px;
+  line-height: 18px;
+  font-size: 12px;
+}
+.preset-bar .preset-select {
+  height: 18px;
+  line-height: 18px;
+  font-size: 9px;
+  background-position: calc(100% - 11px) 7px, calc(100% - 7px) 7px;
+}
+
+/* ── 顶部横条微调：下移一点、收窄居中、别切到上边缘 ───────── */
+.preset-bar {
+  left: 444px;
+  top: 4px;
+  width: 300px;
+  height: 24px;
+  gap: 7px;
+}
+.preset-bar::before {
+  left: -12px;
+  right: -12px;
+  top: 0;
+  bottom: 0;
+  border-radius: 8px;
+}
+.preset-bar .preset-nav {
+  width: 22px;
+  height: 20px;
+  line-height: 20px;
+  font-size: 13px;
+}
+.preset-bar .preset-select {
+  height: 20px;
+  line-height: 20px;
+  font-size: 9.5px;
+  background-position: calc(100% - 11px) 8px, calc(100% - 7px) 8px;
+}
