@@ -1241,3 +1241,143 @@ body {
   -webkit-text-fill-color: transparent !important;
   color: transparent !important;
 }
+
+/* =====================================================================
+   第十九轮：品牌字体换成 Mrs Saint Delafield（Google Fonts）
+   —— 花体手写感，字重的"细"来自笔画本身，不需要再叠 italic
+   ===================================================================== */
+@font-face {
+  font-family: "Mrs Saint Delafield";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("fonts/MrsSaintDelafield-400.woff2") format("woff2");
+}
+
+.brand-main,
+.brand-main span {
+  font-family: "Mrs Saint Delafield", "Segoe Script", cursive !important;
+  font-style: normal !important;       /* 花体本身就是斜的，不要再加 italic */
+  font-weight: 400 !important;
+  /* 手写体的小写字高比衬线体矮很多，尺寸要放大才撑得住版面 */
+  font-size: 44px !important;
+  line-height: 44px !important;
+  letter-spacing: 0.5px !important;    /* 花体靠字形取巧，不要拉字距 */
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+/* "TOiRE" 那一截：暖金渐变 */
+.brand-main {
+  background: linear-gradient(176deg,
+      #fff8ea 0%,
+      #f3dcaa 28%,
+      #e8b96a 55%,
+      #c9a869 78%,
+      #8f7340 100%) !important;
+}
+
+/* "-2A" 那一截：更亮的浅金，和主字区分开 */
+.brand-main span {
+  background: linear-gradient(176deg, #fff4d6 0%, #efc782 46%, #c08c3c 100%) !important;
+}
+
+/* 副标题也换成同一个手写体，但小一号、字距拉开 */
+.brand-sub {
+  font-family: "Mrs Saint Delafield", "Segoe Script", cursive !important;
+  font-style: normal !important;
+  font-weight: 400 !important;
+  font-size: 15px !important;
+  line-height: 18px !important;
+  letter-spacing: 3.2px !important;
+  background: linear-gradient(90deg, #c0ae88 0%, #ecdcb2 45%, #a08a5f 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+/* ── 修正：用 background-image 而不是 background，否则 shorthand 会把
+      background-clip 重置成 border-box，渐变就变成一块矩形 ── */
+.brand-main {
+  font-size: 38px !important;
+  line-height: 40px !important;
+  background-image: linear-gradient(176deg,
+      #fff8ea 0%, #f3dcaa 28%, #e8b96a 55%, #c9a869 78%, #8f7340 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+.brand-main span {
+  font-size: 38px !important;
+  line-height: 40px !important;
+  background-image: linear-gradient(176deg, #fff4d6 0%, #efc782 46%, #c08c3c 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+.brand-sub {
+  font-size: 13px !important;
+  line-height: 15px !important;
+  letter-spacing: 2.6px !important;
+  background-image: linear-gradient(90deg, #c0ae88 0%, #ecdcb2 45%, #a08a5f 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+.brand-model {
+  font-size: 9.5px !important;
+  line-height: 12px !important;
+}
+
+/* ── 主 logo 保留花体，但提亮渐变 + 加柔光，保证可读 ── */
+.brand-main {
+  font-size: 42px !important;
+  line-height: 42px !important;
+  letter-spacing: 0 !important;
+  background-image: linear-gradient(178deg,
+      #fffdf6 0%,
+      #ffeecb 22%,
+      #f0cb8c 52%,
+      #d9ab63 78%,
+      #b58a44 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.6))
+          drop-shadow(0 0 10px rgba(232,185,106,.22)) !important;
+}
+.brand-main span {
+  font-size: 42px !important;
+  line-height: 42px !important;
+  background-image: linear-gradient(178deg, #fffdf6 0%, #f5d79a 45%, #c99a4a 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+/* ── 副标题：花体在 13px 下完全认不出，回到衬线体 + 宽字距 ── */
+.brand-sub {
+  font-family: "Bodoni Moda", "Palatino Linotype", "Book Antiqua", Georgia, serif !important;
+  font-style: italic !important;
+  font-weight: 400 !important;
+  font-size: 10.5px !important;
+  line-height: 13px !important;
+  letter-spacing: 3.6px !important;
+  text-transform: uppercase !important;
+  background-image: linear-gradient(90deg, #cfbe97 0%, #f0dfb8 45%, #ab9468 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
