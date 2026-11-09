@@ -64,7 +64,9 @@ $required = @(
     'Contents\webui\style.css',
     'Contents\webui\juce-bridge.js',
     'Contents\webui\fonts\CinzelDecorative-700.woff2',
-    'Contents\webui\fonts\CinzelDecorative-900.woff2'
+    'Contents\webui\fonts\CinzelDecorative-900.woff2',
+    'Contents\webui\fonts\Italianno-400.woff2',
+    'Contents\webui\fonts\BodoniModa-italic-400.woff2'
 )
 foreach ($rel in $required) {
     $full = Join-Path $payloadBundle $rel
