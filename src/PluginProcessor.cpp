@@ -149,10 +149,7 @@ TOIRE2AAudioProcessor::createParameterLayout()
         juce::NormalisableRange<float> (30.0f, 2000.0f, 1.0f),
         110.0f));
 
-    // 表头 3 位开关（真机面板上的 GAIN REDUCTION / OUTPUT +10 / OUTPUT +4）
-    //   0 = GR        指针显示增益衰减（压得越深越往左）
-    //   1 = OUTPUT+10 0 VU ↔ −12 dBFS（即 +10 dBu 参考）
-    //   2 = OUTPUT+4  0 VU ↔ −18 dBFS（即 +4 dBu 参考）
+    // 表头 3 位开关：0=GR  1=OUTPUT+10（0VU↔-12dBFS）  2=OUTPUT+4（0VU↔-18dBFS）
     layout.add (std::make_unique<juce::AudioParameterChoice> (
         juce::ParameterID { "meterMode", 1 },
         "Meter Mode",
@@ -260,11 +257,8 @@ void TOIRE2AAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         (void) inPk;
     }
 
-    // ── 表头模式 ───────────────────────────────────────────
-    //   0 = GR       ：指针 = GR（负值 → 越压越往左）
-    //   1 = OUTPUT+10：0 VU ↔ −12 dBFS  → 值 = outDb + 12
-    //   2 = OUTPUT+4 ：0 VU ↔ −18 dBFS → 值 = outDb + 18
-    //   （−18 dBFS = +4 dBu 的 EBU 标准对应；两档相差 6 dB 是真机的表头灵敏度差）
+    // 表头模式：GR 用二阶积分后的 meterS2；输出档用峰值 + 参考电平偏移
+    // 两档相差 6 dB 是真机的表头灵敏度差，参考点按 -18 dBFS = +4 dBu
     const int meterMode = meterModeParam != nullptr
                             ? (int) juce::jlimit (0.0f, 2.0f, meterModeParam->load())
                             : 0;

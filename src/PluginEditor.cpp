@@ -352,10 +352,8 @@ void TOIRE2AWebEditor::ensureWebView()
 
     webView = std::make_unique<Torei2aWebView> (opts);
 
-    // ── 不抢键盘焦点 ───────────────────────────────────────
-    // JUCE 的 WebView2 在获得焦点时会把键盘交给网页（MoveFocus），
-    // 导致 DAW 的空格/快捷键全部失效。这两个开关让它永远拿不到键盘焦点，
-    // 点击只走鼠标事件 —— 我们的 UI 没有文本输入，不需要键盘。
+    // 不抢键盘焦点：WebView2 一旦获得焦点，DAW 的快捷键会全部失效
+    // UI 没有文本输入，关掉点击聚焦即可
     webView->setWantsKeyboardFocus (false);
     webView->setMouseClickGrabsKeyboardFocus (false);
 

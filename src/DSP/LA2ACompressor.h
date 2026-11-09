@@ -53,11 +53,8 @@ public:
     static constexpr float kAttackMix     = 0.60f;     // 快段权重
     
 
-    // ── 释放：双曲线律 GR(t) = A/(t+t0)，等效 τ = A/GR ────
-    // 实测 UAD 释放曲线：A = 1126 dB·ms，t0 = 121 ms（RMS 残差 0.118 dB，
-    // 单指数拟合残差是它的 4.7 倍）。
-    //   kRelQuadA    = A 的基准值（dB·ms）
-    //   kRelQuadAMin = 无记忆时 A 的最小倍率（短过载恢复更快）
+    // 释放双曲律 GR(t)=A/(t+t0)，等效 τ = A/GR（UAD 实测 A=1126, t0=121）
+    // kRelQuadA = A 的基准；kRelQuadAMin = 无记忆时 A 的最小倍率
     static constexpr float kRelQuadA    = 11000.0f;   // 1/GR 项系数（实测 A 在 900–2300 之间随 GR 上升）
     static constexpr float kRelQuadAMin = 0.40f;
     static constexpr float kRelTauMaxMs = 4000.0f;   // τ 上限
@@ -75,10 +72,8 @@ public:
 
     static constexpr float kPeakGainMaxDb = 30.0f;
 
-    // 输出级饱和（变压器/电子管染色）—— 数值拟合 UAD 实测曲线
-    //   模型 y = T*u/(1+|u|^n)^(1/n) + a*y²,  u = x/T
-    //   拟合结果：THD 相似度 99.3%，增益误差 0.06 dB
-    //   n = 8.5 说明真机接近【硬限幅】而非软 tanh —— 这是它能"少压缩多失真"的原因
+    // 输出级饱和：y = T·u/(1+|u|^n)^(1/n) + a·y²,  u = x/T
+    // n=8.5 接近【硬限幅】而非软 tanh —— 这是"少压缩多失真"的来源
     static constexpr float kSatT  = 2.052441f;   // 拐点 +6.2 dBFS
     static constexpr float kSatN  = 30.0f;       // 硬度（接近硬限幅）
     static constexpr float kSatA2 = 0.012340f;   // 二次谐波

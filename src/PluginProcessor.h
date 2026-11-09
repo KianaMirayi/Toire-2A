@@ -73,12 +73,8 @@ private:
 
     std::uint32_t frameCounter = 0;
 
-    // ── 表头弹道（二阶 VU 积分器）─────────────────────────
-    // 之前送"块内最深 GR"（瞬时峰），指针会跟着每个音符尖峰乱跳 —— 两个快速底鼓
-    // 会看到"跳两下"。真 VU 是二阶低通：满幅上升约 300 ms，无过冲，所以第二个
-    // 底鼓的 GR 尖峰会被抹平，指针只缓慢移动。
-    //   二阶、τ=60 ms  → 99% 上升 ≈ 5.8τ ≈ 350 ms
-    //   二阶、τ=280 ms → 50% 回落 ≈ 1.68τ ≈ 470 ms
+    // 表头弹道 = 二阶 VU 积分器（不是块内峰值，否则指针跟着每个尖峰乱跳）
+    // τ=62ms → 99% 上升约 350ms；τ=110ms → 50% 回落约 185ms
     static constexpr float kMeterAttackSec  = 0.062f;
     static constexpr float kMeterReleaseSec = 0.110f;
     float meterS1 = 0.0f;      // 第一级

@@ -47,10 +47,7 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TOIRE2AAudioProcessorEditor)
 };
 
-// ============================================================================
-//  WebView2 版编辑器
-//  CMake 选项 TOIRE2A_WEBVIEW2=ON 时由 createEditor() 选用，原生 UI 保留。
-// ============================================================================
+// WebView2 版编辑器（CMake 开 TOIRE2A_WEBVIEW2 时由 createEditor() 选用）
 #if TOREI2A_HAS_WEBVIEW
 
 /** WebBrowserComponent 默认不通知"页面加载完成"，这里暴露出来。 */
