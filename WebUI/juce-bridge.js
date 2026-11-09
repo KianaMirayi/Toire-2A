@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    juce-bridge.js —— 极简 JUCE 8 Web 前端桥（滑块 relay 协议）
 
    WebView2 里 JUCE 会在「文档创建」阶段注入 window.__JUCE__
@@ -146,14 +146,14 @@
     var listeners = {};
     var values = {
       peakReduction: 30, makeupGain: 50,
-      meterAttack: 75, meterRelease: 403, meterMode: 0
+      meterAttack: 62, meterRelease: 110, meterMode: 0, bypass: 0, preset: 0
     };
     var defs = {
       peakReduction: { start: 0, end: 100, skew: 1, interval: 0.1 },
       makeupGain:    { start: 0, end: 100, skew: 1, interval: 0.1 },
       meterAttack:   { start: 5, end: 300, skew: 1, interval: 1 },
       meterRelease:  { start: 30, end: 2000, skew: 1, interval: 1 },
-      meterMode:     { start: 0, end: 2, skew: 1, interval: 1 }
+      meterMode:     { start: 0, end: 2, skew: 1, interval: 1 },`r`n      bypass:        { start: 0, end: 1, skew: 1, interval: 1 },`r`n      preset:        { start: 0, end: 11, skew: 1, interval: 1 }
     };
 
     function fire(id, payload) {

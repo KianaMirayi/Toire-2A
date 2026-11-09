@@ -1,4 +1,4 @@
-﻿#include "PluginEditor.h"
+#include "PluginEditor.h"
 
 #include "PluginProcessor.h"
 
@@ -265,6 +265,11 @@ TOIRE2AWebEditor::TOIRE2AWebEditor (TOIRE2AAudioProcessor& p)
         bypassAttachment = std::make_unique<juce::WebSliderParameterAttachment> (
             *bypParam, bypassRelay, nullptr);
 
+    // 预设号（顶部预设条）。参数本身不可自动化，但需要 relay 才能让网页写它。
+    if (auto* presetParam = processor.apvts.getParameter ("preset"))
+        presetAttachment = std::make_unique<juce::WebSliderParameterAttachment> (
+            *presetParam, presetRelay, nullptr);
+
     // 载荷预分配：[grDb, inPeakDb, outPeakDb, vuDb, frame]
     telemetryPayload.ensureStorageAllocated (5);
 
@@ -294,6 +299,7 @@ TOIRE2AWebEditor::~TOIRE2AWebEditor()
     meterAttackAttachment.reset();
     meterReleaseAttachment.reset();
     bypassAttachment.reset();
+    presetAttachment.reset();
     meterModeAttachment.reset();
 }
 
@@ -333,7 +339,8 @@ void TOIRE2AWebEditor::ensureWebView()
                           .withOptionsFrom (meterAttackRelay)
                           .withOptionsFrom (meterReleaseRelay)
                           .withOptionsFrom (meterModeRelay)
-                          .withOptionsFrom (bypassRelay);
+                          .withOptionsFrom (bypassRelay)
+                          .withOptionsFrom (presetRelay);
 
     webView = std::make_unique<Torei2aWebView> (opts);
 

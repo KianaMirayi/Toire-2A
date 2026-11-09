@@ -107,6 +107,7 @@ private:
     juce::WebSliderRelay meterAttackRelay   { "meterAttack" };
     juce::WebSliderRelay meterReleaseRelay  { "meterRelease" };
     juce::WebSliderRelay bypassRelay        { "bypass" };
+    juce::WebSliderRelay presetRelay        { "preset" };
 
     // 表头模式（AudioParameterChoice 0/1/2）：用 slider relay 走，
     // JS 侧读归一化值 0 / 0.5 / 1，写回时同样用 setNormalisedValue 切档。
@@ -117,6 +118,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> meterAttackAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> meterReleaseAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> bypassAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> presetAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> meterModeAttachment;
 
     // 遥测载荷 [grDb, inPeakDb, outPeakDb, vuDb, frame]
