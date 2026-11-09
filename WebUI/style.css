@@ -1429,3 +1429,6 @@ body {
   font-size: 38px !important;
   line-height: 38px !important;
 }
+
+/* LIMIT/COMPRESS 整块左移 5px */
+.sw-left { left: 37.5px !important; }
