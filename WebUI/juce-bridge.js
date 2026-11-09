@@ -1,4 +1,4 @@
-﻿/* =====================================================================
+/* =====================================================================
    juce-bridge.js —— 极简 JUCE 8 Web 前端桥（滑块 relay 协议）
 
    WebView2 里 JUCE 会在「文档创建」阶段注入 window.__JUCE__
@@ -153,7 +153,9 @@
       makeupGain:    { start: 0, end: 100, skew: 1, interval: 0.1 },
       meterAttack:   { start: 5, end: 300, skew: 1, interval: 1 },
       meterRelease:  { start: 30, end: 2000, skew: 1, interval: 1 },
-      meterMode:     { start: 0, end: 2, skew: 1, interval: 1 },`r`n      bypass:        { start: 0, end: 1, skew: 1, interval: 1 },`r`n      preset:        { start: 0, end: 11, skew: 1, interval: 1 }
+      meterMode:     { start: 0, end: 2, skew: 1, interval: 1 },
+      bypass:        { start: 0, end: 1, skew: 1, interval: 1 },
+      preset:        { start: 0, end: 11, skew: 1, interval: 1 }
     };
 
     function fire(id, payload) {
@@ -170,7 +172,7 @@
         __juce__toggles: [],
         __juce__comboBoxes: [],
         __juce__registeredGlobalEventIds: [],
-        __juce__sliders: ["peakReduction", "makeupGain", "meterAttack", "meterRelease", "meterMode"]
+        __juce__sliders: ["peakReduction", "makeupGain", "meterAttack", "meterRelease", "meterMode", "bypass", "preset"]
       },
       backend: {
         addEventListener: function (id, fn) {
