@@ -32,7 +32,7 @@ struct FactoryPreset
 inline const FactoryPreset kFactoryPresets[] =
 {
     // name            Peak   Gain   meter
-    { "Init",            30.0f, 50.0f, 0 },
+    { "Init",            30.0f, 30.0f, 0 },
     { "Light Comp",      25.0f, 23.0f, 0 },
     { "Vocal 1",         35.0f, 28.0f, 0 },
     { "Vocal 2",         45.0f, 32.0f, 0 },

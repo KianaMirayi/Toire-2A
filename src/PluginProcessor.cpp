@@ -132,7 +132,7 @@ TOIRE2AAudioProcessor::createParameterLayout()
         juce::ParameterID { "makeupGain", 1 },
         "Gain",
         juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f),
-        50.0f));
+        30.0f));
 
     // ── 表头弹道（VU 积分器）─────────────────────────────
     // 暴露出来方便现场调：起针越慢，两个快速底鼓越不会"跳两下"。
@@ -151,8 +151,8 @@ TOIRE2AAudioProcessor::createParameterLayout()
 
     // 表头 3 位开关（真机面板上的 GAIN REDUCTION / OUTPUT +10 / OUTPUT +4）
     //   0 = GR        指针显示增益衰减（压得越深越往左）
-    //   1 = OUTPUT+10 0 VU ↔ −8 dBFS（即 +10 dBu 参考）
-    //   2 = OUTPUT+4  0 VU ↔ −14 dBFS（即 +4 dBu 参考）
+    //   1 = OUTPUT+10 0 VU ↔ −12 dBFS（即 +10 dBu 参考）
+    //   2 = OUTPUT+4  0 VU ↔ −18 dBFS（即 +4 dBu 参考）
     layout.add (std::make_unique<juce::AudioParameterChoice> (
         juce::ParameterID { "meterMode", 1 },
         "Meter Mode",
@@ -262,8 +262,9 @@ void TOIRE2AAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     // ── 表头模式 ───────────────────────────────────────────
     //   0 = GR       ：指针 = GR（负值 → 越压越往左）
-    //   1 = OUTPUT+10：0 VU ↔ −8 dBFS  → 值 = outDb + 8
-    //   2 = OUTPUT+4 ：0 VU ↔ −14 dBFS → 值 = outDb + 14
+    //   1 = OUTPUT+10：0 VU ↔ −12 dBFS  → 值 = outDb + 12
+    //   2 = OUTPUT+4 ：0 VU ↔ −18 dBFS → 值 = outDb + 18
+    //   （−18 dBFS = +4 dBu 的 EBU 标准对应；两档相差 6 dB 是真机的表头灵敏度差）
     const int meterMode = meterModeParam != nullptr
                             ? (int) juce::jlimit (0.0f, 2.0f, meterModeParam->load())
                             : 0;
@@ -271,7 +272,7 @@ void TOIRE2AAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     if (meterMode == 0)
         vuValueDb = meterS2;
     else
-        vuValueDb = meterPeakHold + ((meterMode == 1) ? 8.0f : 14.0f);
+        vuValueDb = meterPeakHold + ((meterMode == 1) ? 12.0f : 18.0f);
 
     // ── DSP → 桥（原生 UI / WebView UI 共用）───────────────
     toreia2a::UiTelemetry t;
