@@ -380,15 +380,43 @@
 
     /* 指针投影 */
     ctx.save();
-    ctx.translate(px + 0.7, py + 0.9);
+    ctx.translate(px, py);
     ctx.rotate(a);
+    /* 针体 + 柔和投影一次画完：用 canvas 原生 shadowBlur，
+       光源在左上 → 影子落到右下。比叠多层线更干净（不会变成"雾"）。 */
+    ctx.lineCap = "round";
+    /* 投影：三层，偏移量逐层加大、宽度逐层收窄 —— 形成"从针身向外逐渐变淡"的衰减，
+       而不是一条和针分家的灰带。偏移在屏幕空间，所以要先反旋 a。 */
+    var i2, layers = [
+      [1.6, 1.9, 3.8, 0.13],
+      [2.3, 2.7, 2.6, 0.19],
+      [3.0, 3.5, 1.6, 0.23]
+    ];
+    for (i2 = 0; i2 < layers.length; i2++) {
+      var lx = layers[i2][0], ly = layers[i2][1];
+      var rx = lx * Math.cos(-a) - ly * Math.sin(-a);
+      var ry = lx * Math.sin(-a) + ly * Math.cos(-a);
+      ctx.save();
+      ctx.translate(rx, ry);
+      ctx.beginPath();
+      ctx.moveTo(0, 10);
+      ctx.lineTo(0, -(R - 2));
+      ctx.lineWidth = layers[i2][2];
+      ctx.strokeStyle = "rgba(46,30,10," + layers[i2][3] + ")";
+      ctx.stroke();
+      ctx.restore();
+    }
     ctx.beginPath();
     ctx.moveTo(0, 10);
     ctx.lineTo(0, -(R - 2));
     ctx.lineWidth = 2.0;
-    ctx.lineCap = "round";
-    ctx.strokeStyle = "rgba(60,42,16,0.20)";
+    ctx.strokeStyle = "rgba(26,20,12,0.97)";
     ctx.stroke();
+    /* 关掉投影（高光由下面的针体那一趟画，避免画两遍） */
+    ctx.shadowColor   = "transparent";
+    ctx.shadowBlur    = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
     ctx.restore();
 
     /* 指针本体（细黑，1.5px，从底部中心摆出） */
