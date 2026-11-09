@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <JuceHeader.h>
 
@@ -96,6 +96,16 @@ public:
 private:
     void timerCallback() override;
     void ensureWebView();
+
+    // ── 用户预设（存 / 读 .toire2a 文件）──────────────────────
+    void handlePresetAction (const juce::Array<juce::var>& args);
+    void savePresetAsDialog();
+    void loadPresetDialog();
+    void notifyPresetName (const juce::String& name, bool isUser);
+    static juce::File presetDirectory();
+
+    /** 预设文件对话框（异步，不阻塞音频线程）*/
+    std::unique_ptr<juce::FileChooser> presetChooser;
 
     TOIRE2AAudioProcessor& processor;
 

@@ -340,7 +340,15 @@ void TOIRE2AWebEditor::ensureWebView()
                           .withOptionsFrom (meterReleaseRelay)
                           .withOptionsFrom (meterModeRelay)
                           .withOptionsFrom (bypassRelay)
-                          .withOptionsFrom (presetRelay);
+                          .withOptionsFrom (presetRelay)
+
+                          // JS → C++：用户预设的存 / 读。
+                          // 只收到一个事件 id，payload 里带 { action: "save" | "load" }。
+                          .withEventListener ("presetAction",
+                              [this] (const juce::Array<juce::var>& args)
+                              {
+                                  handlePresetAction (args);
+                              });
 
     webView = std::make_unique<Torei2aWebView> (opts);
 
@@ -411,6 +419,97 @@ void TOIRE2AWebEditor::paint (juce::Graphics& g)
 {
     // 与 HTML body / 面板底色一致，避免加载期间闪白
     g.fillAll (juce::Colour (0xff0b0b0c));
+}
+
+//==============================================================================
+//  用户预设：存 / 读 .toire2a 文件
+//==============================================================================
+juce::File TOIRE2AWebEditor::presetDirectory()
+{
+    auto dir = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                   .getChildFile ("TOiRE-2A")
+                   .getChildFile ("presets");
+    if (! dir.isDirectory())
+        dir.createDirectory();
+    return dir;
+}
+
+void TOIRE2AWebEditor::notifyPresetName (const juce::String& name, bool isUser)
+{
+    if (webView == nullptr)
+        return;
+
+    juce::Array<juce::var> payload;
+    payload.add (name);
+    payload.add (isUser ? 1 : 0);
+    webView->emitEventIfBrowserIsVisible ("presetLoaded", payload);
+}
+
+void TOIRE2AWebEditor::savePresetAsDialog()
+{
+    auto suggested = presetDirectory().getChildFile ("My Preset.toire2a");
+
+    presetChooser = std::make_unique<juce::FileChooser> (
+        "保存用户预设", suggested, "*.toire2a");
+
+    presetChooser->launchAsync (
+        juce::FileBrowserComponent::saveMode
+            | juce::FileBrowserComponent::canSelectFiles
+            | juce::FileBrowserComponent::warnAboutOverwriting,
+        [this] (const juce::FileChooser& fc)
+        {
+            auto f = fc.getResult();
+            if (f == juce::File{})
+                return;
+
+            if (! f.hasFileExtension ("toire2a"))
+                f = f.withFileExtension ("toire2a");
+
+            if (auto xml = processor.apvts.copyState().createXml())
+                xml->writeTo (f);
+
+            notifyPresetName (f.getFileNameWithoutExtension(), true);
+        });
+}
+
+void TOIRE2AWebEditor::loadPresetDialog()
+{
+    presetChooser = std::make_unique<juce::FileChooser> (
+        "载入用户预设", presetDirectory(), "*.toire2a");
+
+    presetChooser->launchAsync (
+        juce::FileBrowserComponent::openMode
+            | juce::FileBrowserComponent::canSelectFiles,
+        [this] (const juce::FileChooser& fc)
+        {
+            auto f = fc.getResult();
+            if (! f.existsAsFile())
+                return;
+
+            if (auto xml = juce::XmlDocument::parse (f))
+                if (xml->hasTagName (processor.apvts.state.getType()))
+                    processor.apvts.replaceState (juce::ValueTree::fromXml (*xml));
+
+            notifyPresetName (f.getFileNameWithoutExtension(), true);
+        });
+}
+
+void TOIRE2AWebEditor::handlePresetAction (const juce::Array<juce::var>& args)
+{
+    if (args.isEmpty())
+        return;
+
+    // payload 可能是 { action: "save" } 也可能直接是 "save"，两种都兼容
+    juce::String action;
+    if (args[0].isObject())
+        action = args[0].getProperty ("action", juce::var()).toString();
+    else
+        action = args[0].toString();
+
+    if (action == "save")
+        savePresetAsDialog();
+    else if (action == "load")
+        loadPresetDialog();
 }
 
 #endif // TOREI2A_HAS_WEBVIEW

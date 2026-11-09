@@ -1571,3 +1571,25 @@ body {
       rgba(74,52,20,.035) 84%,
       rgba(74,52,20,.075) 100%);
 }
+
+/* ── 预设条：加宽，容纳存/读按钮 ── */
+.preset-bar {
+  left: 418px !important;
+  width: 372px !important;
+}
+.preset-io {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: var(--surface-container, #28221a);
+  font-size: 10px;
+  line-height: 20px;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--outline-variant, #3a332a);
+  transition: background-color 120ms ease-out;
+}
+.preset-io:hover { background: #332a20; }
+.preset-io:active { background: #3d3327; }

@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    TOiRE-2A —— 前端逻辑（ES5，无外部依赖）
    · 两个可拖拽旋钮（GAIN / PEAK REDUCTION），WebSliderRelay 双向绑定
    · VU 表：C++ 30Hz 推 gainReductionDb（语义 = VU 刻度上的 dB 值），这里插值画针
@@ -704,6 +704,43 @@
         opt.textContent = PRESET_NAMES[i];
         sel.appendChild(opt);
       }
+
+      /* ── 用户预设：存 / 读文件（走 C++ 的原生文件对话框）── */
+      var emitPresetAction = function (action) {
+        try {
+          if (window.__JUCE__ && window.__JUCE__.backend && window.__JUCE__.backend.emitEvent) {
+            window.__JUCE__.backend.emitEvent("presetAction", { action: action });
+          }
+        } catch (e) { /* ignore */ }
+      };
+      var btnSave = document.getElementById("presetSave");
+      var btnLoad = document.getElementById("presetLoad");
+      if (btnSave) btnSave.addEventListener("click", function () { emitPresetAction("save"); });
+      if (btnLoad) btnLoad.addEventListener("click", function () { emitPresetAction("load"); });
+
+      /* C++ 保存/载入完成后回传名字 → 在下拉里加一个"用户预设"项并选中 */
+      try {
+        window.__JUCE__.backend.addEventListener("presetLoaded", function (payload) {
+          var name = (payload && payload.length) ? String(payload[0]) : "";
+          if (!name) return;
+          var opt = null, i2;
+          for (i2 = 0; i2 < sel.options.length; i2++) {
+            if (sel.options[i2].getAttribute("data-user") && sel.options[i2].textContent === name) {
+              opt = sel.options[i2];
+              break;
+            }
+          }
+          if (!opt) {
+            opt = document.createElement("option");
+            opt.textContent = name;
+            opt.setAttribute("data-user", "1");
+            opt.style.color = "#9fd6a8";     /* 用户预设用绿色区分 */
+            sel.appendChild(opt);
+          }
+          /* 用户预设不改写 preset 参数，只切换显示 */
+          sel.value = opt.value;
+        });
+      } catch (e) { /* ignore */ }
 
       var applyIndex = function (idx) {
         idx = clamp(idx, 0, PRESET_NAMES.length - 1);
