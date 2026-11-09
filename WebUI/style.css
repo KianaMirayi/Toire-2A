@@ -1381,3 +1381,44 @@ body {
   -webkit-text-fill-color: transparent !important;
   color: transparent !important;
 }
+
+/* =====================================================================
+   第二十轮：品牌 logo 换 Italianno（Google Fonts）
+   ===================================================================== */
+@font-face {
+  font-family: "Italianno";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("fonts/Italianno-400.woff2") format("woff2");
+}
+
+.brand-main,
+.brand-main span {
+  font-family: "Italianno", "Segoe Script", cursive !important;
+  font-style: normal !important;
+  font-weight: 400 !important;
+  /* Italianno 的小写更矮更斜，需要比 Mrs Saint Delafield 更大的字号 */
+  font-size: 48px !important;
+  line-height: 46px !important;
+  letter-spacing: 0.5px !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+.brand-main {
+  background-image: linear-gradient(178deg,
+      #fffdf6 0%,
+      #ffeecb 22%,
+      #f0cb8c 52%,
+      #d9ab63 78%,
+      #b58a44 100%) !important;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.6))
+          drop-shadow(0 0 10px rgba(232,185,106,.20)) !important;
+}
+
+.brand-main span {
+  background-image: linear-gradient(178deg, #fffdf6 0%, #f5d79a 45%, #c99a4a 100%) !important;
+}
