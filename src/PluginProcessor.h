@@ -39,6 +39,12 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    /** 从 XML 恢复状态（用户预设文件用）。
+        ⚠️ 必须走这个入口而不是直接 apvts.replaceState() ——
+        replaceState 会对每个参数触发 setValueNotifyingHost，进而回调 "preset" 监听器
+        调 applyPreset，把刚从文件里恢复的 Peak / Gain 覆写回出厂预设值。 */
+    void loadStateXml (const juce::XmlElement& xml);
+
     /** 应用第 index 个出厂预设（会同时改 Peak / Gain / 表头档位）。
         也用于 PluginEditor 暴露给网页端的预设下拉。 */
     void applyPreset (int index);
@@ -59,6 +65,9 @@ private:
 
     // 正在应用预设时，忽略自己触发的参数回调
     bool applyingPreset = false;
+
+    // 正在从宿主 / 文件恢复状态时，同样忽略 "preset" 回调（见 loadStateXml 注释）
+    std::atomic<bool> loadingState { false };
     int  currentPreset = 0;
 
     toreia2a::LA2ACompressor compressor;

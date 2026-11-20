@@ -55,7 +55,7 @@ void TOIRE2AAudioProcessor::applyPreset (int index)
 
 void TOIRE2AAudioProcessor::parameterChanged (const juce::String& parameterID, float newValue)
 {
-    if (applyingPreset)
+    if (applyingPreset || loadingState.load (std::memory_order_acquire))
         return;
 
     if (parameterID == "preset")
@@ -297,11 +297,42 @@ void TOIRE2AAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     }
 }
 
+namespace
+{
+    /** RAII：装载期间把 loadingState 置 true，析构时恢复原值（异常也安全）*/
+    struct AtomicFlagScope
+    {
+        std::atomic<bool>& ref;
+        bool prev;
+        explicit AtomicFlagScope (std::atomic<bool>& r)
+            : ref (r), prev (r.exchange (true, std::memory_order_acq_rel)) {}
+        ~AtomicFlagScope() { ref.store (prev, std::memory_order_release); }
+        JUCE_DECLARE_NON_COPYABLE (AtomicFlagScope)
+    };
+}
+
+void TOIRE2AAudioProcessor::loadStateXml (const juce::XmlElement& xml)
+{
+    if (! xml.hasTagName (apvts.state.getType()))
+        return;
+
+    // 装载期间屏蔽 "preset" 监听器：replaceState 会逐个参数触发
+    // setValueNotifyingHost，否则 applyPreset 会把刚恢复的值覆写出厂预设。
+    // 同时把 currentPreset 与文件里存的 preset 号对齐，避免之后误触发。
+    {
+        const AtomicFlagScope guard (loadingState);
+        apvts.replaceState (juce::ValueTree::fromXml (xml));
+    }
+
+    if (auto* p = apvts.getParameter ("preset"))
+        currentPreset = juce::jlimit (0, toreia2a::kNumFactoryPresets - 1,
+                                      (int) std::lround (p->convertFrom0to1 (p->getValue())));
+}
+
 void TOIRE2AAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary (data, sizeInBytes))
-        if (xml->hasTagName (apvts.state.getType()))
-            apvts.replaceState (juce::ValueTree::fromXml (*xml));
+        loadStateXml (*xml);
 }
 
 juce::AudioProcessor* createPluginFilter()

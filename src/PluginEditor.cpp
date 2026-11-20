@@ -485,8 +485,7 @@ void TOIRE2AWebEditor::loadPresetDialog()
                 return;
 
             if (auto xml = juce::XmlDocument::parse (f))
-                if (xml->hasTagName (processor.apvts.state.getType()))
-                    processor.apvts.replaceState (juce::ValueTree::fromXml (*xml));
+                processor.loadStateXml (*xml);   // 走带守卫的入口，不要直接 replaceState
 
             notifyPresetName (f.getFileNameWithoutExtension(), true);
         });
@@ -508,6 +507,25 @@ void TOIRE2AWebEditor::handlePresetAction (const juce::Array<juce::var>& args)
         savePresetAsDialog();
     else if (action == "load")
         loadPresetDialog();
+    else if (action.startsWith ("load:"))
+        loadUserPresetByName (action.substring (5));
+}
+
+void TOIRE2AWebEditor::loadUserPresetByName (const juce::String& name)
+{
+    if (name.isEmpty())
+        return;
+
+    // 只接受文件名主干，防目录穿越
+    const auto safe = juce::File::createLegalFileName (name);
+    const auto f = presetDirectory().getChildFile (safe + ".toire2a");
+    if (! f.existsAsFile())
+        return;
+
+    if (auto xml = juce::XmlDocument::parse (f))
+        processor.loadStateXml (*xml);
+
+    notifyPresetName (name, true);
 }
 
 #endif // TOREI2A_HAS_WEBVIEW

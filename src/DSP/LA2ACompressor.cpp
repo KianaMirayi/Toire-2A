@@ -1,4 +1,4 @@
-﻿#include "LA2ACompressor.h"
+#include "LA2ACompressor.h"
 
 namespace toreia2a
 {
@@ -201,11 +201,19 @@ float LA2ACompressor::process (float* const* channels, int numChannels, int numS
             const float gain = in * currentGain;          // 增益衰减后（侧链取这个）
             float out        = gain * makeupGain;         // 带 makeup
 
-            // 输出级软饱和 + 偶次谐波项（拟合 UAD 的 H2-H7）：T=1.612  n=4.63
-            // a2=+0.0331（二次）a4=-0.0268（四次）；实测 0 dBFS 时基波损失 8.3 dB
+            // 输出级软饱和 + 偶次谐波项（拟合 UAD 的 H2-H7）：T=2.052441  n=30
+            // a2=+0.01234（二次）a4=-0.008347（四次）；实测 0 dBFS 时基波损失 8.3 dB
+            //
+            // ⚠️ 不能直接算 pow(1 + au^n, 1/n)：au > 19.28 时 au^n 在 float32 里溢出成 Inf
+            //    → 结果被算成 0，整个半周期被"挖成平底"（Gain 拧到 78 以上就能听到）。
+            //    这里用等价形式：|u| ≥ 1 时把 au^n 提出来，改算 (1/au)^n（≤1，永不溢出）。
             const float u  = out / kSatT;
             const float au = std::fabs (u);
-            const float y  = kSatT * u * std::pow (1.0f + std::pow (au, kSatN), -1.0f / kSatN);
+            const float invN = 1.0f / kSatN;
+            const float denom = (au <= 1.0f)
+                                  ? std::pow (1.0f + std::pow (au, kSatN), invN)
+                                  : au * std::pow (1.0f + std::pow (1.0f / au, kSatN), invN);
+            const float y  = (denom > 0.0f) ? (out / denom) : 0.0f;
             const float y2 = y * y;
             const float y3 = y2 * y;
             const float y4 = y2 * y2;

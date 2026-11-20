@@ -98,6 +98,7 @@ private:
     void handlePresetAction (const juce::Array<juce::var>& args);
     void savePresetAsDialog();
     void loadPresetDialog();
+    void loadUserPresetByName (const juce::String& name);
     void notifyPresetName (const juce::String& name, bool isUser);
     static juce::File presetDirectory();
 

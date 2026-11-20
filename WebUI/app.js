@@ -1,4 +1,4 @@
-﻿/* =====================================================================
+/* =====================================================================
    TOiRE-2A —— 前端逻辑（ES5，无外部依赖）
    · 两个可拖拽旋钮（GAIN / PEAK REDUCTION），WebSliderRelay 双向绑定
    · VU 表：C++ 30Hz 推 gainReductionDb（语义 = VU 刻度上的 dB 值），这里插值画针
@@ -742,21 +742,29 @@
         });
       } catch (e) { /* ignore */ }
 
+      /* 最后一次选中的「出厂预设」号。用户预设项没有数字 value，
+         点 ‹ / › 时必须靠它而不是 parseInt(sel.value)（否则 = NaN，下拉永久空白）*/
+      var lastIndex = 0;
+
       var applyIndex = function (idx) {
+        if (!isFinite(idx)) idx = 0;
         idx = clamp(idx, 0, PRESET_NAMES.length - 1);
+        lastIndex = idx;
         sel.value = String(idx);
         if (st) st.setNormalisedValue(idx / (PRESET_NAMES.length - 1));
       };
 
       sel.addEventListener("change", function () {
+        var opt = sel.options[sel.selectedIndex];
+        if (opt && opt.getAttribute("data-user")) {
+          /* 用户预设：让 C++ 按名字去读同目录下的 <名字>.toire2a */
+          emitPresetAction("load:" + opt.textContent);
+          return;
+        }
         applyIndex(parseInt(sel.value, 10));
       });
-      if (prev) prev.addEventListener("click", function () {
-        applyIndex(parseInt(sel.value, 10) - 1);
-      });
-      if (next) next.addEventListener("click", function () {
-        applyIndex(parseInt(sel.value, 10) + 1);
-      });
+      if (prev) prev.addEventListener("click", function () { applyIndex(lastIndex - 1); });
+      if (next) next.addEventListener("click", function () { applyIndex(lastIndex + 1); });
 
       /* C++ 侧（宿主 Program 菜单）改了 → 同步下拉 */
       if (st) {
