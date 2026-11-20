@@ -376,9 +376,36 @@ void TOIRE2AWebEditor::ensureWebView()
     const auto html = findWebUiIndex();
 
     if (html.existsAsFile())
+    {
         webView->goToURL (juce::URL (html).toString (false));
+    }
     else
-        webView->goToURL ("about:blank");
+    {
+        // 找不到界面文件时绝不能只显示一片黑屏 —— 那是最难排查的故障。
+        // 加载一段内联错误页，把期望路径直接写在屏幕上。
+        juce::Logger::writeToLog ("TOIRE-2A: webui/index.html not found");
+        const auto expected = html.getFullPathName().replace ("\\", "/");
+
+        const auto page = juce::String (
+            "<!doctype html><html><head><meta charset='utf-8'><style>"
+            "html,body{margin:0;height:100%;background:#120e0a;color:#e8b96a;"
+            "font:13px/1.7 'Palatino Linotype',Georgia,serif;display:flex;"
+            "align-items:center;justify-content:center}"
+            ".b{max-width:820px;padding:28px 34px;border:1px solid #3a332a;border-radius:10px;"
+            "background:#1b1610}"
+            "h1{font-size:19px;margin:0 0 12px;letter-spacing:1px}"
+            "code{color:#9fd6a8;word-break:break-all;font-family:Consolas,monospace;font-size:12px}"
+            "p{margin:8px 0;color:#b8ac96}</style></head><body><div class='b'>"
+            "<h1>TOiRE-2A —— 界面文件缺失</h1>"
+            "<p>插件本体已加载，但找不到网页界面：</p>"
+            "<p><code>") + expected + juce::String (
+            "</code></p>"
+            "<p>通常是安装包不完整。请确认 VST3 bundle 里存在 "
+            "<code>Contents/webui/index.html</code>，重新安装一次即可。</p>"
+            "</div></body></html>");
+
+        webView->goToURL ("data:text/html;charset=utf-8," + juce::URL::addEscapeChars (page, true));
+    }
 }
 
 void TOIRE2AWebEditor::timerCallback()

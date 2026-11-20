@@ -29,7 +29,10 @@
       call: function () {
         for (var i = 0; i < fns.length; i++) {
           if (!fns[i]) continue;
-          try { fns[i](); } catch (e) { /* 单个监听器出错不拖垮整条链 */ }
+          try { fns[i](); } catch (e) {
+        /* 单个监听器出错不拖垮整条链，但必须上报（DAW 里没有 DevTools） */
+        if (window.__toireReportError) window.__toireReportError("listener", e);
+      }
         }
       }
     };
@@ -131,7 +134,17 @@
   if (typeof window.__JUCE__ === "undefined" ||
       !window.__JUCE__ ||
       !window.__JUCE__.backend) {
+    /* 注意：插件本身也是用 file:// 加载界面的，和"浏览器预览"无法区分，
+       所以不能靠协议判断。这里照常装 mock（保证预览可用），
+       但**必须让用户看见"这是演示模式"** —— 否则界面看着完全正常、
+       其实一个参数都没连上 C++，是最难排查的故障。 */
     installMock();
+
+    if (window.__toireReportError) {
+      window.__toireReportError ("bridge",
+        new Error ("MOCK MODE —— 没有连上 C++（window.__JUCE__ 未注入）。" +
+                   "界面可以点但不生效，请检查 WebView2 运行时是否正常。"));
+    }
   }
 
   /* ---------------- 注册到 window.__JUCE__ ---------------- */

@@ -25,6 +25,21 @@
 
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
 
+  /* 统一的错误上报：DAW 里没有 DevTools，任何异常都必须显示到页面顶部红条，
+     否则用户只看到"没反应"。 */
+  function reportError(prefix, e) {
+    try {
+      var el = document.getElementById("errors");
+      if (!el) return;
+      el.style.display = "block";
+      el.textContent = prefix + ": " + (e && e.message ? e.message : e) +
+                       "\n" + (e && e.stack ? e.stack : "");
+    } catch (ignored) { /* 连错误条都写不了就没办法了 */ }
+  }
+
+  /* 让 juce-bridge.js / 其它脚本也能把错误送到红条上 */
+  window.__toireReportError = reportError;
+
   /* ================= 旋钮 ================= */
   function Knob(cfg) {
     this.cfg = cfg;
@@ -33,11 +48,15 @@
     this.num = $(cfg.num);
     this.dial = $(cfg.dial);
     this.value = cfg.def;
-    this.state = window.__JUCE__.getSliderState(cfg.param);
+    this.state = null;
+    try { this.state = window.__JUCE__.getSliderState(cfg.param); }
+    catch (e) { reportError("knob(" + cfg.param + ")", e); }
 
     var self = this;
-    this.state.valueChangedEvent.addListener(function () { self.syncFromState(); });
-    this.state.propertiesChangedEvent.addListener(function () { self.syncFromState(); });
+    if (this.state) {
+      this.state.valueChangedEvent.addListener(function () { self.syncFromState(); });
+      this.state.propertiesChangedEvent.addListener(function () { self.syncFromState(); });
+    }
 
     this.bind();
     this.drawDial();
@@ -45,6 +64,7 @@
   }
 
   Knob.prototype.syncFromState = function () {
+    if (!this.state) return;
     var v = this.state.getScaledValue();
     if (typeof v === "number" && isFinite(v)) this.setVisual(v, false);
   };
@@ -57,7 +77,7 @@
     this.rot.style.transform = "rotate(" + deg.toFixed(2) + "deg)";
     this.num.textContent = String(Math.round(v));
 
-    if (push) this.state.setNormalisedValue(v / KNOB_MAX);
+    if (push && this.state) this.state.setNormalisedValue(v / KNOB_MAX);
   };
 
   Knob.prototype.bind = function () {
@@ -66,16 +86,20 @@
 
     function onMove(e) {
       if (!drag) return;
+      /* 在窗口外松手 / Alt-Tab / DAW 抢走鼠标捕获时收不到 mouseup：
+         用按键状态兜底，否则 drag 永远非空、之后不按键划过旋钮也会改值 */
+      if (e.buttons === 0) { onUp(); return; }
       var scale = e.shiftKey ? 0.12 : 0.42;
       self.setVisual(drag.v + (drag.y - e.clientY) * scale, true);
     }
 
     function onUp() {
-      if (drag) self.state.sliderDragEnded();
+      if (drag && self.state) self.state.sliderDragEnded();
       drag = null;
       self.unit.classList.remove("drag");
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("blur", onUp);
       document.body.style.cursor = "";
     }
 
@@ -83,11 +107,12 @@
       if (e.button !== 0) return;
       e.preventDefault();
       drag = { y: e.clientY, v: self.value };
-      self.state.sliderDragStarted();
+      if (self.state) self.state.sliderDragStarted();
       self.unit.classList.add("drag");
       document.body.style.cursor = "ns-resize";
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
+      window.addEventListener("blur", onUp);
     });
 
     this.unit.addEventListener("wheel", function (e) {
@@ -569,35 +594,49 @@
     }
   }
 
+  /* 帧内缓存：值没变就不重绘 / 不写 DOM —— 空闲时把整屏 canvas 重绘省掉 */
+  var lastNeedleV = 1e9, lastGrText = "", lastT4At = 0;
+
   function frame() {
+    /* 先排下一帧：即使本帧抛异常，动画链也不会断（否则表针永久冻结） */
+    window.requestAnimationFrame(frame);
+    try {
+      frameBody();
+    } catch (e) {
+      reportError("frame", e);
+    }
+  }
+
+  function frameBody() {
     var alive = (nowMs() - lastFrameAt) < 300;
     var want = alive ? targetV : 0;
 
-    /* 弹道在 C++（40 ms 起针 / 500 ms 回落），这里只做 30 Hz → 60 fps 的帧间插值 */
+    /* 弹道在 C++，这里只做 30 Hz → 60 fps 的帧间插值 */
     var k = (want < showedV) ? 0.75 : 0.55;
     showedV += (want - showedV) * k;
     if (Math.abs(want - showedV) < 0.02) showedV = want;
 
-    drawNeedle(showedV);
+    if (showedV !== lastNeedleV) {
+      drawNeedle(showedV);
+      lastNeedleV = showedV;
 
-    if (grNum) grNum.textContent = fmtDb(showedV);
+      if (grNum) {
+        var txt = fmtDb(showedV);
+        if (txt !== lastGrText) { grNum.textContent = txt; lastGrText = txt; }
+      }
+    }
 
-      /* T4 光电池：亮度 = GR 基准 + 缓慢正弦"呼吸"
-         呼吸是【发光强度的起伏】，不是尺寸缩放。
-         GR 越大 → 基准越亮（EL 面板被信号点亮） */
+    /* T4 呼吸：周期 4.6 s，20 Hz 更新足够，不必每帧写 style */
+    var t4now = nowMs();
+    if (t4now - lastT4At >= 50) {
+      lastT4At = t4now;
       var t4g = clamp(Math.abs(showedV) / 9, 0, 1);
-      var t4sec = nowMs() * 0.001;
-      var t4breath = 0.5 + 0.5 * Math.sin(t4sec * (2 * Math.PI / 4.6));  /* 0..1，周期 4.6 s */
-      if (t4GlowEl) {
-        var gBase = 0.30 + 0.50 * t4g;              /* GR 决定基准 */
-        t4GlowEl.style.opacity = (gBase * (0.72 + 0.28 * t4breath)).toFixed(3);
-      }
-      if (t4CoreEl) {
-        var cBase = 0.35 + 0.45 * t4g;
-        t4CoreEl.style.opacity = (cBase * (0.80 + 0.20 * t4breath)).toFixed(3);
-      }
-
-    window.requestAnimationFrame(frame);
+      var t4breath = 0.5 + 0.5 * Math.sin (t4now * 0.001 * (2 * Math.PI / 4.6));
+      if (t4GlowEl)
+        t4GlowEl.style.opacity = ((0.30 + 0.50 * t4g) * (0.72 + 0.28 * t4breath)).toFixed(3);
+      if (t4CoreEl)
+        t4CoreEl.style.opacity = ((0.35 + 0.45 * t4g) * (0.80 + 0.20 * t4breath)).toFixed(3);
+    }
   }
 
   function initMeterTune() {
@@ -671,10 +710,21 @@
     /* 3 位表头开关（必须在 setupMeter 之后，切档要重画静态层） */
     initMeterMode();
 
+    var resizePending = false;
     window.addEventListener("resize", function () {
-      gainKnob.drawDial();
-      peakKnob.drawDial();
-      setupMeter();
+      /* 拖窗口会连发几十次 resize，每次都要重画两个刻度盘 + 重建表盘位图。
+         合并到下一帧，一帧只做一次。 */
+      if (resizePending) return;
+      resizePending = true;
+      window.requestAnimationFrame(function () {
+        resizePending = false;
+        try {
+          gainKnob.drawDial();
+          peakKnob.drawDial();
+          setupMeter();
+          lastNeedleV = 1e9;   /* 画布被重建了，强制下一帧重绘指针 */
+        } catch (e) { reportError("resize", e); }
+      });
     });
 
     /* ============ 出厂预设下拉 ============ */
@@ -789,11 +839,12 @@
       var bypassState = null;
       try { bypassState = window.__JUCE__.getSliderState("bypass"); } catch (e2) { bypassState = null; }
       var bypassed = false;
-      function syncBypass(on) {
+      /* 注意：块内函数声明在 ES5 严格模式下是 SyntaxError，用函数表达式 */
+      var syncBypass = function (on) {
         bypassed = on;
         if (swRight) swRight.className = bypassed ? "switch sw-right alt" : "switch sw-right";
         if (bypassState) bypassState.setNormalisedValue(bypassed ? 1 : 0);
-      }
+      };
       if (bypassState) {
         bypassState.valueChangedEvent.addListener(function () {
           var on = bypassState.getNormalisedValue() > 0.5;
@@ -824,15 +875,19 @@
   }
 
   function boot() {
+    /* 全局兜底：任何未捕获异常 / Promise 拒绝都进红条 */
+    window.onerror = function (msg, src, line, col, err) {
+      reportError("window.onerror", err || new Error(msg + " @" + src + ":" + line));
+      return false;
+    };
+    window.addEventListener("unhandledrejection", function (ev) {
+      reportError("unhandledrejection", ev && ev.reason ? ev.reason : new Error("rejected"));
+    });
+
     try {
       init();
     } catch (e) {
-      var el = document.getElementById("errors");
-      if (el) {
-        el.style.display = "block";
-        el.textContent = "FATAL: " + (e && e.message ? e.message : e) +
-                         "\n" + (e && e.stack ? e.stack : "");
-      }
+      reportError("FATAL", e);
     }
   }
 
