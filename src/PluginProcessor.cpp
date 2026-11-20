@@ -1,4 +1,4 @@
-#include "PluginProcessor.h"
+﻿#include "PluginProcessor.h"
 
 #include "PluginEditor.h"
 
@@ -182,13 +182,27 @@ TOIRE2AAudioProcessor::createParameterLayout()
     return layout;
 }
 
-void TOIRE2AAudioProcessor::prepareToPlay (double sampleRate, int /*samplesPerBlock*/)
+void TOIRE2AAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    compressor.prepare (sampleRate);
+    // 先设参数，再 prepare —— prepare 会把平滑器吸附到目标值，避免启动渐入
     if (peakReductionParam != nullptr)
         compressor.setPeakReduction (peakReductionParam->load() * 0.01f);
     if (makeupGainParam != nullptr)
         compressor.setMakeupGainDb (dialToGainDb (makeupGainParam->load()));
+
+    compressor.prepare (sampleRate);
+
+    // 旁路交叉淡化用的干声暂存（只在这里分配，音频线程零分配）
+    dryScratch.setSize (2, juce::jmax (1, samplesPerBlock), false, false, true);
+
+    // 起始就对齐当前旁路状态：否则"全程旁路"的渲染会在前 20 ms 淡变，
+    // 破坏"旁路 = 纯直通（逐采样等于干声）"这条性质。
+    bypassAmount = (bypassParam != nullptr && bypassParam->load() > 0.5f) ? 1.0f : 0.0f;
+
+    // 表头状态归零，避免换采样率 / 换缓冲后带着旧值回来
+    meterS1 = 0.0f;
+    meterS2 = 0.0f;
+    meterPeakHold = -96.0f;
 }
 
 void TOIRE2AAudioProcessor::releaseResources() {}
@@ -230,10 +244,44 @@ void TOIRE2AAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (int ch = 0; ch < usedCh; ++ch)
         chans[ch] = buffer.getWritePointer (ch);
 
-    // 旁路：直接跳过压缩器（buffer 是原地处理，不动就是直通）
+    // ── 旁路交叉淡化 ────────────────────────────────────────
+    // 硬切会让输出一步跨越整机净增益（高 Gain 时十几 dB）→ pop。
+    // 这里改成 20 ms 淡变；而且旁路期间仍然跑 compressor，
+    // 让内部状态（dcState / bright / currentGain）保持新鲜，解除时不会再补一次咔哒。
+    // ⚠️ 常态（未旁路且已收敛）走的是零开销分支：不拷干声、不混合，
+    //    buffer 完全由 compressor 原地处理 → 输出与改动前逐采样相同。
     const bool bypassed = bypassParam != nullptr && bypassParam->load() > 0.5f;
-    const float blockGr = bypassed ? 0.0f
-                                   : compressor.process (chans, usedCh, numSamples);
+    const float targetBypass = bypassed ? 1.0f : 0.0f;
+    const bool crossfading = (bypassAmount > 0.0f) || (targetBypass > 0.0f);
+
+    const bool canCrossfade = crossfading
+                              && dryScratch.getNumSamples() >= numSamples
+                              && dryScratch.getNumChannels() >= usedCh;
+
+    if (canCrossfade)
+        for (int ch = 0; ch < usedCh; ++ch)
+            dryScratch.copyFrom (ch, 0, buffer, ch, 0, numSamples);
+
+    // 始终处理（旁路期间也跑，保持状态新鲜）
+    float blockGr = compressor.process (chans, usedCh, numSamples);
+
+    if (canCrossfade)
+    {
+        const float step = (targetBypass - bypassAmount) / (float) numSamples;
+        for (int n = 0; n < numSamples; ++n)
+        {
+            bypassAmount += step;
+            const float w = juce::jlimit (0.0f, 1.0f, bypassAmount);
+            for (int ch = 0; ch < usedCh; ++ch)
+                chans[ch][n] = chans[ch][n] * (1.0f - w) + dryScratch.getReadPointer (ch)[n] * w;
+        }
+        bypassAmount = targetBypass;
+        blockGr *= (1.0f - bypassAmount);   // 表头跟着淡出
+    }
+    else if (bypassed)
+    {
+        blockGr = 0.0f;                     // 纯旁路（无缓冲可混合时的兜底）
+    }
 
     // 表头弹道（二阶 VU 积分器，不是取峰值）──────────────
     // 直接送"块内最深 GR"会让指针跟着每个尖峰乱跳（两个快速底鼓会看到跳两下）。

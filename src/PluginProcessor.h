@@ -82,6 +82,12 @@ private:
 
     std::uint32_t frameCounter = 0;
 
+    // ── 旁路交叉淡化 ──────────────────────────────────────
+    // 0 = 完全处理，1 = 完全直通。只在切换期间逐采样 ramp，
+    // 完全未旁路时（常态）不拷干声、不做混合 → 输出与硬旁路版本逐采样相同。
+    juce::AudioBuffer<float> dryScratch;
+    float bypassAmount = 0.0f;
+
     // 表头弹道 = 二阶 VU 积分器（不是块内峰值，否则指针跟着每个尖峰乱跳）
     // τ=62ms → 99% 上升约 350ms；τ=110ms → 50% 回落约 185ms
     static constexpr float kMeterAttackSec  = 0.062f;

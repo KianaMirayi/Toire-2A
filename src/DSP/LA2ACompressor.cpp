@@ -20,6 +20,10 @@ void LA2ACompressor::prepare (double sr) noexcept
     cMemRise     = coefficientFor (kMemRiseMs);
     cMemFall     = coefficientFor (kMemFallMs);
 
+    // 平滑器直接吸附到目标值：避免启动 / 换采样率时前几毫秒的渐入
+    linearPeakGain = targetPeakGain;
+    makeupGain     = targetMakeupGain;
+
     // 侧链频率响应：UAD 实测 H(f) 的最小二乘拟合（RMS 误差 0.22 dB）
     // ① low shelf 349Hz +4.35  ② peaking 4820Hz Q0.71 +1.07  ③ high shelf 7405Hz -1.12
     scEq[0].b0 = 1.008141441f; scEq[0].b1 = -1.942478642f; scEq[0].b2 = 0.936944970f;
@@ -97,12 +101,13 @@ void LA2ACompressor::setPeakReduction (float n) noexcept
         }
     }
     peakGainDb = db;
+    targetPeakGain = std::pow (10.0f, db / 20.0f);   // 缓存，避免每采样一次 pow
 }
 
 void LA2ACompressor::setMakeupGainDb (float db) noexcept
 {
-    makeupGainDb = std::clamp (db, -100.0f, 40.0f);
-    makeupGain   = std::pow (10.0f, makeupGainDb / 20.0f);
+    makeupGainDb  = std::clamp (db, -100.0f, 40.0f);
+    targetMakeupGain = std::pow (10.0f, makeupGainDb / 20.0f);
 }
 
 void LA2ACompressor::updateSidechain (float sample) noexcept
@@ -116,18 +121,13 @@ void LA2ACompressor::updateSidechain (float sample) noexcept
     const float det = std::fabs (sample);
 
     // ── 2) 侧链驱动（Peak Reduction 的增益）─────────────
-    const float x = det * std::pow (10.0f, peakGainDb / 20.0f);
+    const float x = det * linearPeakGain;   // ramp 后的当前值，不再每采样 pow
 
-    // ── 3) attack：跳跃越大充得越快（真机 EL 面板被强信号瞬间点亮）──
-    // 固定时间常数会让短过载充不满（20 ms 过载 GR 只有 5.81，UAD 是 8.42）。
-    // 用「目标/当前」的幅度比来加速：从静音起跳时 atkSpeed 很大 → 几乎瞬时。
+    // ── 3) attack：真机 EL 面板被强信号瞬间点亮 ──
+    // （曾经的"跳跃加速"是死代码：clamp(sqrt(jump),1,1) 恒为 1，已移除）
     const float p = x * x;
     const float pDet = p;   // 直接跟瞬时功率（加平均会引入 3 dB 电平偏差）
     const float brightPrev = kAttackMix * brightFast + (1.0f - kAttackMix) * brightSlow;
-    const float jump = (brightPrev > 1e-9f) ? (p / brightPrev) : 1.0e6f;
-    const float atkSpeed = std::clamp (std::sqrt (jump), 1.0f, 1.0f);   // 上限 1 = 关闭加速（试过提速，反而让 bright 跟着波形抖动，GR 变浅）
-    const float cAtkFastNow = coefficientFor (kAttackFastMs / atkSpeed);
-    const float cAtkSlowNow = coefficientFor (kAttackSlowMs / atkSpeed);
 
     // 记忆深度 → 释放速度：CdS 压得越深，恢复越慢
     // 用 r3/bright 的【比例】而不是绝对 dB（绝对 dB 跨度太大，缩放会失效）
@@ -145,10 +145,10 @@ void LA2ACompressor::updateSidechain (float sample) noexcept
                           : kRelTauMaxMs;
     const float cRelNow = coefficientFor (tauMs);
 
-    const float cbF = (pDet > brightFast) ? cAtkFastNow : cRelNow;
+    const float cbF = (pDet > brightFast) ? cAttackFast : cRelNow;
     brightFast += (pDet - brightFast) * cbF;
 
-    const float cbS = (pDet > brightSlow) ? cAtkSlowNow : cRelNow;
+    const float cbS = (pDet > brightSlow) ? cAttackSlow : cRelNow;
     brightSlow += (pDet - brightSlow) * cbS;
 
     const float bright = kAttackMix * brightFast + (1.0f - kAttackMix) * brightSlow;
@@ -187,8 +187,27 @@ float LA2ACompressor::process (float* const* channels, int numChannels, int numS
     float blockMaxGr = 0.0f;
     float feedback   = 0.0f;      // 上一次【增益衰减后、makeup 之前】的信号
 
+    // 参数平滑：本块内逐采样线性 ramp 到目标值。
+    // 稳态时 target == 当前值 → 步长恰好 0 → 输出与"完全不平滑"时逐采样相同。
+    const float stepPeakGain   = (targetPeakGain   - linearPeakGain) / (float) numSamples;
+    const float stepMakeupGain = (targetMakeupGain - makeupGain)     / (float) numSamples;
+    const float invN = 1.0f / kSatN;
+
     for (int n = 0; n < numSamples; ++n)
     {
+        // NaN / Inf 防护：dcState 会自己乘 0.995 反馈回来，一旦进 NaN 就永久锁死，
+        // 只能重新 prepare 才能恢复（表现为整机静音或数字噪声）。
+        if (! std::isfinite (feedback))
+        {
+            feedback   = 0.0f;
+            brightFast = brightSlow = r1 = 0.0f;
+            dcState    = dcPrev = 0.0f;
+            currentGain = 1.0f;
+        }
+
+        linearPeakGain += stepPeakGain;
+        makeupGain     += stepMakeupGain;
+
         // 侧链读【上一采样点的增益衰减后信号】，且【不含 makeup】——
         // 真机的侧链接在 Gain 旋钮之前，所以 Gain 不影响压缩量（手册原文）
         updateSidechain (feedback);
@@ -201,6 +220,13 @@ float LA2ACompressor::process (float* const* channels, int numChannels, int numS
             const float gain = in * currentGain;          // 增益衰减后（侧链取这个）
             float out        = gain * makeupGain;         // 带 makeup
 
+            // NaN / Inf 防护：非法输入当成 0，并清掉直流阻断器状态
+            if (! std::isfinite (out))
+            {
+                out = 0.0f;
+                dcState = dcPrev = 0.0f;
+            }
+
             // 输出级软饱和 + 偶次谐波项（拟合 UAD 的 H2-H7）：T=2.052441  n=30
             // a2=+0.01234（二次）a4=-0.008347（四次）；实测 0 dBFS 时基波损失 8.3 dB
             //
@@ -209,7 +235,6 @@ float LA2ACompressor::process (float* const* channels, int numChannels, int numS
             //    这里用等价形式：|u| ≥ 1 时把 au^n 提出来，改算 (1/au)^n（≤1，永不溢出）。
             const float u  = out / kSatT;
             const float au = std::fabs (u);
-            const float invN = 1.0f / kSatN;
             const float denom = (au <= 1.0f)
                                   ? std::pow (1.0f + std::pow (au, kSatN), invN)
                                   : au * std::pow (1.0f + std::pow (1.0f / au, kSatN), invN);
@@ -237,6 +262,10 @@ float LA2ACompressor::process (float* const* channels, int numChannels, int numS
         outPeak  = std::max (outPeak, std::fabs (channels[0][n]));
         blockMaxGr = std::min (blockMaxGr, lastGrDb);
     }
+
+    // 吸附到目标值：消除 ramp 的浮点累积误差，保证稳态逐采样完全一致
+    linearPeakGain = targetPeakGain;
+    makeupGain     = targetMakeupGain;
 
     return blockMaxGr;
 }

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <algorithm>
 #include <array>
@@ -114,7 +114,13 @@ private:
     float peakReduction = 0.3f;
     float peakGainDb    = 0.0f;
     float makeupGainDb  = 0.0f;
-    float makeupGain    = 1.0f;
+
+    // 参数平滑：setter 写 target，process() 每块内逐采样线性 ramp 过去。
+    // 稳态时 ramp 步长恒为 0 → 输出与未平滑时逐采样相同（不改变声音）。
+    float targetPeakGain   = 1.0f;   // 侧链驱动线性增益（由 peakGainDb 换算）
+    float linearPeakGain   = 1.0f;   // 当前值（ramp 中）
+    float targetMakeupGain = 1.0f;   // 补偿增益（由 makeupGainDb 换算）
+    float makeupGain       = 1.0f;   // 当前值（ramp 中）
 
     // 侧链频率响应：实测 UAD 的 H(f) 拟合出的三段双二阶级联
     Biquad scEq[3];
