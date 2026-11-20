@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <JuceHeader.h>
 
@@ -7,7 +7,8 @@
 #include "Presets/FactoryPresets.h"
 
 class TOIRE2AAudioProcessor : public juce::AudioProcessor,
-                              private juce::AudioProcessorValueTreeState::Listener
+                              private juce::AudioProcessorValueTreeState::Listener,
+                              private juce::AsyncUpdater
 {
 public:
     TOIRE2AAudioProcessor();
@@ -31,7 +32,7 @@ public:
     // 出厂预设表见 Presets/FactoryPresets.h。宿主（Cubase / Studio Pro / Reaper）
     // 会把它们显示在插件窗口的预设下拉里。
     int getNumPrograms() override { return toreia2a::kNumFactoryPresets; }
-    int getCurrentProgram() override { return currentPreset; }
+    int getCurrentProgram() override { return currentPreset.load (std::memory_order_acquire); }
     void setCurrentProgram (int index) override;
     const juce::String getProgramName (int index) override;
     void changeProgramName (int, const juce::String&) override {}
@@ -49,8 +50,8 @@ public:
         也用于 PluginEditor 暴露给网页端的预设下拉。 */
     void applyPreset (int index);
 
-    /** 当前预设号（-1 = 已被手动改动，不匹配任何出厂预设） */
-    int getCurrentPresetIndex() const noexcept { return currentPreset; }
+    /** 当前预设号 */
+    int getCurrentPresetIndex() const noexcept { return currentPreset.load (std::memory_order_acquire); }
 
     juce::AudioProcessorValueTreeState apvts;
 
@@ -63,12 +64,19 @@ private:
     // 预设参数变化时（网页下拉或宿主 Program 菜单）应用预设
     void parameterChanged (const juce::String& parameterID, float newValue) override;
 
+    // 宿主 / 音频线程发起的预设切换，延后到消息线程执行
+    void handleAsyncUpdate() override;
+
     // 正在应用预设时，忽略自己触发的参数回调
-    bool applyingPreset = false;
+    std::atomic<bool> applyingPreset { false };
+
+    // 待应用的预设号（-1 = 无）。宿主可能在音频线程改参数，
+    // 而 applyPreset 会调 setValueNotifyingHost（要拿锁 + 通知宿主），不能在音频线程做。
+    std::atomic<int> pendingPreset { -1 };
 
     // 正在从宿主 / 文件恢复状态时，同样忽略 "preset" 回调（见 loadStateXml 注释）
     std::atomic<bool> loadingState { false };
-    int  currentPreset = 0;
+    std::atomic<int> currentPreset { 0 };
 
     toreia2a::LA2ACompressor compressor;
     toreia2a::UiBridge       uiBridge;

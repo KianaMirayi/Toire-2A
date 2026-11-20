@@ -1,4 +1,4 @@
-#include "LA2ACompressor.h"
+﻿#include "LA2ACompressor.h"
 
 namespace toreia2a
 {
@@ -8,6 +8,68 @@ namespace
 // 侧链电平 → GR 的柔化拐点（保证 GR 在拐点处正好从 0 开始）
 constexpr float kHalfLn2 = 0.6931472f;
 } // namespace
+
+namespace
+{
+    // DSP 层刻意不依赖 JUCE，所以自带一个 π
+    constexpr double kPi = 3.14159265358979323846;
+
+    // ── RBJ cookbook 双二阶设计（只用于非 48 kHz；48 kHz 用实测拟合系数）──
+    // 与 Biquad::process 的符号约定一致：a1/a2 是标准分母系数（a0 归一化到 1）
+    void designLowShelf (float& o0, float& o1, float& o2,
+                         float& a1, float& a2,
+                         float f, float gainDb, float q, double sr)
+    {
+        const double A  = std::pow (10.0, gainDb / 40.0);
+        const double w  = 2.0 * kPi * f / sr;
+        const double cs = std::cos (w), sn = std::sin (w);
+        const double al = sn / (2.0 * q);
+        const double sq = 2.0 * std::sqrt (A) * al;
+        const double a0 = (A + 1.0) + (A - 1.0) * cs + sq;
+        o0 = (float) (A * ((A + 1.0) - (A - 1.0) * cs + sq) / a0);
+        o1 = (float) (2.0 * A * ((A - 1.0) - (A + 1.0) * cs) / a0);
+        o2 = (float) (A * ((A + 1.0) - (A - 1.0) * cs - sq) / a0);
+        a1 = (float) (-2.0 * ((A - 1.0) + (A + 1.0) * cs) / a0);
+        a2 = (float) (((A + 1.0) + (A - 1.0) * cs - sq) / a0);
+    }
+
+    void designHighShelf (float& o0, float& o1, float& o2,
+                          float& a1, float& a2,
+                          float f, float gainDb, float q, double sr)
+    {
+        const double A  = std::pow (10.0, gainDb / 40.0);
+        const double w  = 2.0 * kPi * f / sr;
+        const double cs = std::cos (w), sn = std::sin (w);
+        const double al = sn / (2.0 * q);
+        const double sq = 2.0 * std::sqrt (A) * al;
+        const double a0 = (A + 1.0) - (A - 1.0) * cs + sq;
+        o0 = (float) (A * ((A + 1.0) + (A - 1.0) * cs + sq) / a0);
+        o1 = (float) (-2.0 * A * ((A - 1.0) + (A + 1.0) * cs) / a0);
+        o2 = (float) (A * ((A + 1.0) + (A - 1.0) * cs - sq) / a0);
+        a1 = (float) (2.0 * ((A - 1.0) - (A + 1.0) * cs) / a0);
+        a2 = (float) (((A + 1.0) - (A - 1.0) * cs - sq) / a0);
+    }
+
+    void designPeaking (float& o0, float& o1, float& o2,
+                        float& a1, float& a2,
+                        float f, float gainDb, float q, double sr)
+    {
+        const double A  = std::pow (10.0, gainDb / 40.0);
+        const double w  = 2.0 * kPi * f / sr;
+        const double cs = std::cos (w), sn = std::sin (w);
+        const double al = sn / (2.0 * q);
+        const double a0 = 1.0 + al / A;
+        o0 = (float) ((1.0 + al * A) / a0);
+        o1 = (float) (-2.0 * cs / a0);
+        o2 = (float) ((1.0 - al * A) / a0);
+        a1 = (float) (-2.0 * cs / a0);
+        a2 = (float) ((1.0 - al / A) / a0);
+    }
+
+    /** 48 kHz 之外的采样率：按设计参数重新设计侧链 EQ。
+        48 kHz 本身保持实测拟合系数不变（保证标定结果位级一致）。*/
+    bool isCalibrationRate (double sr) noexcept { return std::abs (sr - 48000.0) < 0.5; }
+}
 
 void LA2ACompressor::prepare (double sr) noexcept
 {
@@ -26,14 +88,36 @@ void LA2ACompressor::prepare (double sr) noexcept
 
     // 侧链频率响应：UAD 实测 H(f) 的最小二乘拟合（RMS 误差 0.22 dB）
     // ① low shelf 349Hz +4.35  ② peaking 4820Hz Q0.71 +1.07  ③ high shelf 7405Hz -1.12
-    scEq[0].b0 = 1.008141441f; scEq[0].b1 = -1.942478642f; scEq[0].b2 = 0.936944970f;
-    scEq[0].a1 = -1.942992269f; scEq[0].a2 = 0.944572784f;
+    //
+    // 下面的系数是【48 kHz 标定值】。48 kHz 时原样使用，保证标定结果位级不变；
+    // 其它采样率按同一组设计参数用 RBJ 重新设计，否则频点会按 sr/48k 线性漂移
+    // （96 kHz 时 349 Hz 会变成 698 Hz，压缩量与 UAD 对不上）。
+    if (isCalibrationRate (sampleRate))
+    {
+        scEq[0].b0 = 1.008141441f; scEq[0].b1 = -1.942478642f; scEq[0].b2 = 0.936944970f;
+        scEq[0].a1 = -1.942992269f; scEq[0].a2 = 0.944572784f;
 
-    scEq[1].b0 = 1.036887715f; scEq[1].b1 = -1.161711399f; scEq[1].b2 = 0.401853006f;
-    scEq[1].a1 = -1.161711399f; scEq[1].a2 = 0.438740721f;
+        scEq[1].b0 = 1.036887715f; scEq[1].b1 = -1.161711399f; scEq[1].b2 = 0.401853006f;
+        scEq[1].a1 = -1.161711399f; scEq[1].a2 = 0.438740721f;
 
-    scEq[2].b0 = 0.916537735f; scEq[2].b1 = -0.625363503f; scEq[2].b2 = 0.233812766f;
-    scEq[2].a1 = -0.747016138f; scEq[2].a2 = 0.272003136f;
+        scEq[2].b0 = 0.916537735f; scEq[2].b1 = -0.625363503f; scEq[2].b2 = 0.233812766f;
+        scEq[2].a1 = -0.747016138f; scEq[2].a2 = 0.272003136f;
+    }
+    else
+    {
+        designLowShelf  (scEq[0].b0, scEq[0].b1, scEq[0].b2, scEq[0].a1, scEq[0].a2,
+                         349.0f,  4.35f, 0.707f, sampleRate);
+        designPeaking   (scEq[1].b0, scEq[1].b1, scEq[1].b2, scEq[1].a1, scEq[1].a2,
+                         4820.0f, 1.07f, 0.71f,  sampleRate);
+        designHighShelf (scEq[2].b0, scEq[2].b1, scEq[2].b2, scEq[2].a1, scEq[2].a2,
+                         7405.0f, -1.12f, 0.707f, sampleRate);
+    }
+
+    // 直流阻断极点：写死 0.995 相当于 48 kHz 下 38.3 Hz 转折。
+    // 同样只在 48 kHz 保留原值，其它采样率按频率换算，避免高采样率把低频多削一截。
+    dcCoef = isCalibrationRate (sampleRate)
+               ? 0.995f
+               : (float) std::exp (-2.0 * kPi * 38.3 / sampleRate);
 }
 
 void LA2ACompressor::reset() noexcept
@@ -246,7 +330,7 @@ float LA2ACompressor::process (float* const* channels, int numChannels, int numS
             const float sat = y + kSatA2 * y2 + kSatA3 * y3 + kSatA4 * y4 + kSatA5 * y5;
 
             // 一阶直流阻断：不对称项会引入直流
-            dcState = sat - dcPrev + 0.995f * dcState;
+            dcState = sat - dcPrev + dcCoef * dcState;
             dcPrev  = sat;
             out = dcState;
 

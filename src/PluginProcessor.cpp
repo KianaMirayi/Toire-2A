@@ -1,4 +1,4 @@
-﻿#include "PluginProcessor.h"
+#include "PluginProcessor.h"
 
 #include "PluginEditor.h"
 
@@ -44,9 +44,10 @@ void TOIRE2AAudioProcessor::applyPreset (int index)
         return;
 
     const auto& pr = toreia2a::kFactoryPresets[index];
-    currentPreset = index;
+    currentPreset.store (index, std::memory_order_release);
 
-    juce::ScopedValueSetter<bool> guard (applyingPreset, true);
+    applyingPreset.store (true, std::memory_order_release);
+    struct ApplyGuard { std::atomic<bool>& f; ~ApplyGuard() { f.store (false, std::memory_order_release); } } guard { applyingPreset };
 
     setParamSilently (apvts, "peakReduction", pr.peakReduction * 0.01f);
     setParamSilently (apvts, "makeupGain",    pr.makeupGain    * 0.01f);
@@ -55,16 +56,36 @@ void TOIRE2AAudioProcessor::applyPreset (int index)
 
 void TOIRE2AAudioProcessor::parameterChanged (const juce::String& parameterID, float newValue)
 {
-    if (applyingPreset || loadingState.load (std::memory_order_acquire))
+    if (applyingPreset.load (std::memory_order_acquire)
+        || loadingState.load (std::memory_order_acquire))
         return;
 
     if (parameterID == "preset")
     {
+        // APVTS 的监听回调给的是【非归一化】值，直接用
         const int idx = juce::jlimit (0, toreia2a::kNumFactoryPresets - 1,
                                       (int) std::lround (newValue));
-        if (idx != currentPreset)
+        if (idx == currentPreset.load (std::memory_order_acquire))
+            return;
+
+        // 消息线程（网页下拉）→ 立即应用；宿主/音频线程 → 延后，避免在音频线程改 APVTS
+        if (juce::MessageManager::existsAndIsCurrentThread())
+        {
             applyPreset (idx);
+        }
+        else
+        {
+            pendingPreset.store (idx, std::memory_order_release);
+            triggerAsyncUpdate();
+        }
     }
+}
+
+void TOIRE2AAudioProcessor::handleAsyncUpdate()
+{
+    const int idx = pendingPreset.exchange (-1, std::memory_order_acq_rel);
+    if (idx >= 0 && idx != currentPreset.load (std::memory_order_acquire))
+        applyPreset (idx);
 }
 
 void TOIRE2AAudioProcessor::setCurrentProgram (int index)
@@ -73,7 +94,7 @@ void TOIRE2AAudioProcessor::setCurrentProgram (int index)
 
     // 同步给网页下拉（如果编辑器开着）
     if (auto* p = apvts.getParameter ("preset"))
-        p->setValueNotifyingHost (p->convertTo0to1 ((float) currentPreset));
+        p->setValueNotifyingHost (p->convertTo0to1 ((float) currentPreset.load (std::memory_order_acquire)));
 }
 
 const juce::String TOIRE2AAudioProcessor::getProgramName (int index)
@@ -373,8 +394,9 @@ void TOIRE2AAudioProcessor::loadStateXml (const juce::XmlElement& xml)
     }
 
     if (auto* p = apvts.getParameter ("preset"))
-        currentPreset = juce::jlimit (0, toreia2a::kNumFactoryPresets - 1,
-                                      (int) std::lround (p->convertFrom0to1 (p->getValue())));
+        currentPreset.store (juce::jlimit (0, toreia2a::kNumFactoryPresets - 1,
+                                            (int) std::lround (p->convertFrom0to1 (p->getValue()))),
+                             std::memory_order_release);
 }
 
 void TOIRE2AAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
