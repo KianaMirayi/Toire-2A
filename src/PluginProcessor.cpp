@@ -1,6 +1,5 @@
-#include "PluginProcessor.h"
+﻿#include "PluginProcessor.h"
 
-#include "PluginEditor.h"
 
 TOIRE2AAudioProcessor::TOIRE2AAudioProcessor()
     : AudioProcessor (BusesProperties()
@@ -317,13 +316,11 @@ void TOIRE2AAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     // 输出峰值（表头 OUTPUT +10 / +4 模式用），慢释放
     {
-        const float inPk  = compressor.getInputPeak();
         const float outPk = compressor.getOutputPeak();
         const float pkDb  = (outPk > 1.58e-5f) ? 20.0f * std::log10 (outPk) : -96.0f;
         const float sec   = (float) numSamples / (float) juce::jmax (1.0, getSampleRate());
         const float aPk   = 1.0f - std::exp (-sec / 0.4f);
         meterPeakHold += (pkDb - meterPeakHold) * aPk;
-        (void) inPk;
     }
 
     // 表头模式：GR 用二阶积分后的 meterS2；输出档用峰值 + 参考电平偏移
@@ -347,15 +344,6 @@ void TOIRE2AAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     uiBridge.publish (t);
 }
 
-juce::AudioProcessorEditor* TOIRE2AAudioProcessor::createEditor()
-{
-#if TOREI2A_HAS_WEBVIEW
-    // WebView2 前端（CMake: -DTOIRE2A_WEBVIEW2=ON）
-    return new TOIRE2AWebEditor (*this);
-#else
-    return new TOIRE2AAudioProcessorEditor (*this);
-#endif
-}
 
 void TOIRE2AAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {

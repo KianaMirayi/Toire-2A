@@ -50,9 +50,6 @@ public:
         也用于 PluginEditor 暴露给网页端的预设下拉。 */
     void applyPreset (int index);
 
-    /** 当前预设号 */
-    int getCurrentPresetIndex() const noexcept { return currentPreset.load (std::memory_order_acquire); }
-
     juce::AudioProcessorValueTreeState apvts;
 
     // ── UI 桥：原生 UI 和未来的 WebView UI 都从这里取数据 ──
@@ -98,8 +95,6 @@ private:
 
     // 表头弹道 = 二阶 VU 积分器（不是块内峰值，否则指针跟着每个尖峰乱跳）
     // τ=62ms → 99% 上升约 350ms；τ=110ms → 50% 回落约 185ms
-    static constexpr float kMeterAttackSec  = 0.062f;
-    static constexpr float kMeterReleaseSec = 0.110f;
     float meterS1 = 0.0f;      // 第一级
     float meterS2 = 0.0f;      // 第二级（输出）
     float meterPeakHold = -96.0f;   // 表头模式 2/3 用的输出峰值（慢释放）

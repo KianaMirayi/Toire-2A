@@ -42,7 +42,6 @@ public:
     float process (float* const* channels, int numChannels, int numSamples) noexcept;
 
     // ── 表头 ──────────────────────────────────────────────
-    [[nodiscard]] float getLastGainReductionDb() const noexcept { return lastGrDb; }
     [[nodiscard]] float getInputPeak() const noexcept  { return inPeak; }
     [[nodiscard]] float getOutputPeak() const noexcept { return outPeak; }
 
@@ -128,8 +127,6 @@ private:
 
     float brightFast = 0.0f;  // EL 亮度快段
     float brightSlow = 0.0f;  // CdS 慢速上升段
-    float pEnv      = 0.0f;   // 5 ms 平滑的信号包络（释放判据用）
-    float cEnv      = 0.0f;
     float r1        = 0.0f;   // 快释放状态
         float cMemRise = 0.0f, cMemFall = 0.0f;
     float dcState = 0.0f, dcPrev = 0.0f;   // 直流阻断（不对称饱和会引入直流）
@@ -137,7 +134,7 @@ private:
     float currentGain = 1.0f;
 
     // 平滑系数
-    float cAttackFast = 0.0f, cAttackSlow = 0.0f, cReleaseFast = 0.0f;
+    float cAttackFast = 0.0f, cAttackSlow = 0.0f;
     
 
     float lastGrDb = 0.0f;

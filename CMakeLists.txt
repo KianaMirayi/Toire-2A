@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22)
+﻿cmake_minimum_required(VERSION 3.22)
 project(TOIRE2A VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -33,6 +33,7 @@ juce_generate_juce_header(TOIRE2A)
 target_sources(TOIRE2A PRIVATE
     src/PluginProcessor.cpp
     src/PluginEditor.cpp
+    src/PluginEditorFactory.cpp
     src/DSP/LA2ACompressor.cpp)
 
 target_include_directories(TOIRE2A PRIVATE src)

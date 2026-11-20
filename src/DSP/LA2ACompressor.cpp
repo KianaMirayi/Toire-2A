@@ -78,7 +78,6 @@ void LA2ACompressor::prepare (double sr) noexcept
 
     cAttackFast  = coefficientFor (kAttackFastMs);
     cAttackSlow  = coefficientFor (kAttackSlowMs);
-    cEnv         = coefficientFor (2.0f);
     cMemRise     = coefficientFor (kMemRiseMs);
     cMemFall     = coefficientFor (kMemFallMs);
 
@@ -127,7 +126,6 @@ void LA2ACompressor::reset() noexcept
     brightFast  = 0.0f;
     brightSlow  = 0.0f;
     r1          = 0.0f;
-    pEnv        = 0.0f;
     dcState     = 0.0f;
     dcPrev      = 0.0f;
 
