@@ -384,7 +384,9 @@ void TOIRE2AWebEditor::ensureWebView()
         // 找不到界面文件时绝不能只显示一片黑屏 —— 那是最难排查的故障。
         // 加载一段内联错误页，把期望路径直接写在屏幕上。
         juce::Logger::writeToLog ("TOIRE-2A: webui/index.html not found");
-        const auto expected = html.getFullPathName().replace ("\\", "/");
+        auto expected = html.getFullPathName().replace ("\\", "/");
+        if (expected.isEmpty())
+            expected = "&lt;bundle&gt;/Contents/webui/index.html (also tried webui/index.html, ../webui/)";
 
         const auto page = juce::String (
             "<!doctype html><html><head><meta charset='utf-8'><style>"
@@ -396,15 +398,20 @@ void TOIRE2AWebEditor::ensureWebView()
             "h1{font-size:19px;margin:0 0 12px;letter-spacing:1px}"
             "code{color:#9fd6a8;word-break:break-all;font-family:Consolas,monospace;font-size:12px}"
             "p{margin:8px 0;color:#b8ac96}</style></head><body><div class='b'>"
-            "<h1>TOiRE-2A —— 界面文件缺失</h1>"
-            "<p>插件本体已加载，但找不到网页界面：</p>"
-            "<p><code>") + expected + juce::String (
+            "<h1>TOiRE-2A &mdash; UI files not found</h1>"
+            "<p>The plugin loaded, but its web UI is missing.</p>"
+            "<p>Expected: <code>") + expected + juce::String (
             "</code></p>"
-            "<p>通常是安装包不完整。请确认 VST3 bundle 里存在 "
-            "<code>Contents/webui/index.html</code>，重新安装一次即可。</p>"
+            "<p>This usually means the installation is incomplete. Make sure the VST3 "
+            "bundle contains <code>Contents/webui/index.html</code>, then reinstall.</p>"
+            "<p style='color:#6a6154;font-size:11px'>[err-page build 2]</p>"
             "</div></body></html>");
 
-        webView->goToURL ("data:text/html;charset=utf-8," + juce::URL::addEscapeChars (page, true));
+        // ⚠️ 不能用 URL::addEscapeChars —— data: URL 里百分号编码的 UTF-8 会被
+        //    Chromium 按 Latin-1 解码，中文全变乱码。base64 才是无歧义的。
+        const auto b64 = juce::Base64::toBase64 (page.toRawUTF8(), page.getNumBytesAsUTF8())
+                            .removeCharacters ("\r\n");
+        webView->goToURL ("data:text/html;charset=utf-8;base64," + b64);
     }
 }
 
