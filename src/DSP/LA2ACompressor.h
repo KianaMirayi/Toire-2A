@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <algorithm>
 #include <array>
@@ -129,7 +129,9 @@ private:
     float brightSlow = 0.0f;  // CdS 慢速上升段
     float r1        = 0.0f;   // 快释放状态
         float cMemRise = 0.0f, cMemFall = 0.0f;
-    float dcState = 0.0f, dcPrev = 0.0f;   // 直流阻断（不对称饱和会引入直流）
+    // 直流阻断（不对称饱和会引入直流）—— ⚠️ 必须【按声道】独立，
+    // 否则立体声下左声道的输出会被右声道当成"上一采样值"，造成严重串扰。
+    float dcState[2] = { 0.0f, 0.0f }, dcPrev[2] = { 0.0f, 0.0f };
     float dcCoef  = 0.995f;                // 极点系数，prepare() 按采样率换算
     float currentGain = 1.0f;
 

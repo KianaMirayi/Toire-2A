@@ -126,8 +126,8 @@ void LA2ACompressor::reset() noexcept
     brightFast  = 0.0f;
     brightSlow  = 0.0f;
     r1          = 0.0f;
-    dcState     = 0.0f;
-    dcPrev      = 0.0f;
+    for (int i = 0; i < 2; ++i)
+        dcState[i] = dcPrev[i] = 0.0f;
 
     currentGain = 1.0f;
     lastGrDb    = 0.0f;
@@ -283,7 +283,8 @@ float LA2ACompressor::process (float* const* channels, int numChannels, int numS
         {
             feedback   = 0.0f;
             brightFast = brightSlow = r1 = 0.0f;
-            dcState    = dcPrev = 0.0f;
+            for (int i = 0; i < 2; ++i)
+                dcState[i] = dcPrev[i] = 0.0f;
             currentGain = 1.0f;
         }
 
@@ -306,7 +307,7 @@ float LA2ACompressor::process (float* const* channels, int numChannels, int numS
             if (! std::isfinite (out))
             {
                 out = 0.0f;
-                dcState = dcPrev = 0.0f;
+                dcState[ch & 1] = dcPrev[ch & 1] = 0.0f;
             }
 
             // 输出级软饱和 + 偶次谐波项（拟合 UAD 的 H2-H7）：T=2.052441  n=30
@@ -327,10 +328,12 @@ float LA2ACompressor::process (float* const* channels, int numChannels, int numS
             const float y5 = y4 * y;
             const float sat = y + kSatA2 * y2 + kSatA3 * y3 + kSatA4 * y4 + kSatA5 * y5;
 
-            // 一阶直流阻断：不对称项会引入直流
-            dcState = sat - dcPrev + dcCoef * dcState;
-            dcPrev  = sat;
-            out = dcState;
+            // 一阶直流阻断：不对称项会引入直流。状态必须按声道独立 ——
+            // 共用一份会让"左声道本采样"直接进入右声道输出（立体声串扰）。
+            const int dci = ch & 1;
+            dcState[dci] = sat - dcPrev[dci] + dcCoef * dcState[dci];
+            dcPrev[dci]  = sat;
+            out = dcState[dci];
 
             channels[ch][n] = out;
 
