@@ -32,7 +32,7 @@
 ; ============================================================================
 
 #define AppName      "TOIRE-2A"
-#define AppVersion   "1.3.0"
+#define AppVersion   "1.3.1"
 #define AppPublisher "TOIRE"
 ; JUCE 的 target 名决定了 bundle 文件夹名，必须与之完全一致。
 #define BundleName   "TOIRE-2A.vst3"
