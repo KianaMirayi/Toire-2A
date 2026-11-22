@@ -86,6 +86,7 @@ private:
     std::atomic<float>* bypassParam        = nullptr;
 
     std::uint32_t frameCounter = 0;
+    double lastPreparedRate = 0.0;   // 只在采样率真的变了才重新 prepare
 
     // ── 旁路交叉淡化 ──────────────────────────────────────
     // 0 = 完全处理，1 = 完全直通。只在切换期间逐采样 ramp，

@@ -210,7 +210,19 @@ void TOIRE2AAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     if (makeupGainParam != nullptr)
         compressor.setMakeupGainDb (dialToGainDb (makeupGainParam->load()));
 
-    compressor.prepare (sampleRate);
+    // ⚠️ compressor.prepare() 内部会 reset()。DAW 只是改缓冲区大小时也会调
+    // prepareToPlay —— 那时若也 reset，GR 会瞬间塌到 0，输出先按满 makeup 跳一下
+    // 再重新压回去（听感是"抽一下"）。所以只有采样率真的变了才重新 prepare。
+    if (std::abs (lastPreparedRate - sampleRate) > 0.5)
+    {
+        compressor.prepare (sampleRate);
+        lastPreparedRate = sampleRate;
+
+        // 表头也只在换采样率时归零
+        meterS1 = 0.0f;
+        meterS2 = 0.0f;
+        meterPeakHold = -96.0f;
+    }
 
     // 旁路交叉淡化用的干声暂存（只在这里分配，音频线程零分配）
     dryScratch.setSize (2, juce::jmax (1, samplesPerBlock), false, false, true);
@@ -218,11 +230,6 @@ void TOIRE2AAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     // 起始就对齐当前旁路状态：否则"全程旁路"的渲染会在前 20 ms 淡变，
     // 破坏"旁路 = 纯直通（逐采样等于干声）"这条性质。
     bypassAmount = (bypassParam != nullptr && bypassParam->load() > 0.5f) ? 1.0f : 0.0f;
-
-    // 表头状态归零，避免换采样率 / 换缓冲后带着旧值回来
-    meterS1 = 0.0f;
-    meterS2 = 0.0f;
-    meterPeakHold = -96.0f;
 }
 
 void TOIRE2AAudioProcessor::releaseResources() {}
@@ -251,8 +258,10 @@ void TOIRE2AAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         return;
 
     // ── 参数 → DSP（拨盘 0..100 转成内部量）─────────────
-    compressor.setPeakReduction (peakReductionParam->load() * 0.01f);
-    compressor.setMakeupGainDb  (dialToGainDb (makeupGainParam->load()));
+    if (peakReductionParam != nullptr)
+        compressor.setPeakReduction (peakReductionParam->load() * 0.01f);
+    if (makeupGainParam != nullptr)
+        compressor.setMakeupGainDb (dialToGainDb (makeupGainParam->load()));
 
     // 表头弹道（可在 UI 里实时调）
     const float meterAtkMs = meterAttackParam  != nullptr ? meterAttackParam->load()  : 62.0f;
